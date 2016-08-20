@@ -364,7 +364,9 @@ class FormHelper {
 
 		if ($helper !== NULL) {
 			$others[self::PARAM_RAW_VALUE] = $value;
-			$others['value'] = $helper->text($helper->getObject(), $field, $value, $others['format'], array());
+			if ($value !== NULL) {
+				$others['value'] = $helper->text($helper->getObject(), $field, $value, $others['format'], array());
+			}
 			$value = NULL; // value in parameters have more priority than GET/POST
 		}
 
@@ -517,7 +519,9 @@ class FormHelper {
 			unset($attrs['value']);
 		}
 
-		// allow value attrs in checkbox to having other value than 'on' when checked
+		// allow value attrs in checkbox to having other value than 'on' when checked.
+		// FIXME don't work well. Have to compare $value to $others['value'] for checked ?
+		// $others['values'] is set to helper->text() in ::field()
 		if (($attrs['type'] === 'checkbox') && isset($others['value'])) {
 			$attrs['value'] = $others['value'];
 		}
