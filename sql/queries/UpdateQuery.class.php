@@ -1,0 +1,164 @@
+<?php 
+/**
+ * UpdateQuery class
+ *
+ * @author     Richaud Julien "Fladnag"
+ * @package    salt\sql\queries
+ */
+namespace salt;
+
+/**
+ * Query for UPDATE
+ */
+class UpdateQuery extends Query {
+
+	/**
+	 * @var mixed[] list of fields => values to update */
+	private $sets = array();
+	/**
+	 * @var mixed[] list of fieldName => array of binds.
+	 * @content Register all binds used for each field. If a field is changed twice, previous binds are canceled 
+	 */
+	private $bindsBySetField = array();
+
+	/**
+	 * @var boolean TRUE for allow WHERE clause to update multiple objects
+	 */
+	protected $allowMultiple = FALSE;
+	/**
+	 * @var boolean TRUE for allow and empty WHERE clause
+	 */
+	protected $allowEmptyWhere = FALSE;
+
+	/**
+	 * @var string memoized SQL text of UPDATE query.
+	 */
+	protected $sqlText = NULL;
+
+	/**
+	 * Create a new UPDATE query
+	 * 
+	 * If $obj parameter was retrieve by a SELECT query, you can reuse this query in $fromQuery for update the same object.
+	 * @param Base $obj the object to update
+	 * @param Query $fromQuery NULL or a query for initializing WHERE, JOINS and ORDER clauses.
+	 */
+	public function __construct(Base $obj, Query $fromQuery = NULL) {
+		parent::__construct($obj);
+
+		if ($fromQuery !== NULL) {
+			$this->alias = $fromQuery->alias;
+			$this->binds = $fromQuery->binds;
+			$this->joins = $fromQuery->joins;
+			$this->wheres = $fromQuery->wheres;
+			$this->orders = $fromQuery->orders;
+		}
+
+		foreach($obj->getModifiedFields() as $fieldName => $value) {
+			$this->set($fieldName, SqlExpr::value($value));
+		}
+	}
+
+	/**
+	 * Allow the query to have an "open" WHERE clause, without the clause on object id added automatically 
+	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again multiple update after an allow 
+	 */
+	public function allowMultipleUpdate($value = TRUE) {
+		$this->allowMultiple = $value;
+	}
+
+	/**
+	 * Allow the query to have an empty WHERE clause, which will update all objects in table.
+	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again empty where after an allow
+	 */
+	public function allowEmptyWhere($value = TRUE) {
+		$this->allowEmptyWhere = $value;
+	}
+
+	/**
+	 * Check if UPDATE query update only one object
+	 * @return boolean TRUE if the update is not multiple and modify only 1 object
+	 */
+	public function isSimpleQuery() {
+		return (!$this->allowMultiple && (count($this->wheres) === 1));
+	}
+
+	/**
+	 * Force a SET clause like fieldName = fieldName + X
+	 * @param string $fieldName fieldName to increment
+	 * @param number $value default 1
+	 */
+	public function increment($fieldName, $value = 1) {
+		$this->set($fieldName, SqlExpr::field($this->alias, $this->obj->getField($fieldName))->plus($value));
+	}
+
+	/**
+	 * Force a SET clause like fieldName = fieldName - X
+	 * @param string $fieldName fieldName to decrement
+	 * @param number $value default 1
+	 */
+	public function decrement($fieldName, $value = 1) {
+		$this->set($fieldName, SqlExpr::field($this->alias, $this->obj->getField($fieldName))->plus(- $value));
+	}
+
+	/**
+	 * Force a SET clause like fieldName = sql expression
+	 * @param string $fieldName fieldName to set
+	 * @param SqlExpr $expr the expression
+	 */
+	public function set($fieldName, SqlExpr $expr) {
+		$field = $this->obj->getField($fieldName);
+
+		$expr->asSetter($field);
+
+		if (isset($this->bindsBySetField[$fieldName])) {
+			foreach($this->bindsBySetField[$fieldName] as $b) {
+				unset($this->binds[$b]);
+			}
+			if (!isset($this->bindsSource['SET'])) {
+				$this->bindsSource['SET'] = array();
+			}
+			$this->bindsSource['SET'] = array_diff($this->bindsSource['SET'], $this->bindsBySetField[$fieldName]);
+		}
+
+		$this->sets[$fieldName] = $this->resolveFieldName('SET', $expr);
+
+		$binds = $expr->getBinds();
+		$this->bindsBySetField[$fieldName] = array_keys($binds);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * @param Pagination $pagination not used here
+	 * @see \salt\Query::toSQL()
+	 */
+	public function toSQL(Pagination $pagination = NULL) {
+		if ($this->sqlText !== NULL) {
+			// without memoization, object id bind is added at every call and the 2+ execution failed.
+			// we have to delay add of object id bind at the end for allow the call to allowMultipleUpdate() before
+			return $this->sqlText;
+		}
+
+		$fields = $this->obj->getModifiedFields();
+
+		$sql='UPDATE '.$this->resolveTable();
+		$sql.=$this->joinsToSQL();
+
+		$allSets=array();
+		foreach($this->sets as $field => $value) {
+			$allSets[]=$field.' = '.$value;
+		}
+		$sql.=' SET '.implode(', ', $allSets);
+
+		if (!$this->allowMultiple) {
+			$this->whereAndObject($this->obj);
+		}
+		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {
+			throw new Exception('You don\'t have a WHERE clause on UPDATE. Please call allowEmptyWhere() if you really want to do this');
+		}
+		$sql.=$this->wheresToSQL();
+		$sql.=$this->orderToSQL();
+
+		$this->sqlText = $sql;
+		return $this->sqlText;
+	}
+}

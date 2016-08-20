@@ -1,0 +1,604 @@
+<?php
+/**
+ * Base class
+ *
+ * @author     Richaud Julien "Fladnag"
+ * @package    salt\dao
+ */
+namespace salt;
+
+use \Exception;
+
+/**
+ * Base class for all business DAO objects
+ */
+abstract class Base extends Identifiable {
+	/** State of a not initialized objet */
+	const STATE_NONE=0;
+	/** State of a new created objet */
+	const STATE_NEW=10;
+	/** State of an object created by PDO but not populated yet */
+	const STATE_LOADING=21;
+	/** State of an object created and populated by PDO fetch */
+	const STATE_LOADED=20;
+	/** State of a modified object after being loaded by PDO */
+	const STATE_MODIFIED=30;
+	/** State of a deleted object */
+	const STATE_DELETED=40;
+	/** A special state for objet singleton returned by meta() function. Throw an exception if a setter is called */
+	const STATE_READONLY=50;
+
+	/**
+	 * @var mixed[] Metadata of all classes
+	 * @content <pre>array of class name => array(
+	 * 		'fields' => array(field name => Field),
+	 * 		'tablename' => table name,
+	 * 		'idfield' => id field name,
+	 * 		'singleton' => empty instance,
+	 * )</pre> */
+	private static $_saltMetadata = array();
+
+	/**
+	 * @var mixed[] Modified values for object loaded from database
+	 * @content array of fieldName => value */
+	private $_saltValues = array();
+
+	/**
+	 * @var mixed[] All extra fields which are returned by a query and are not declared in metadata
+	 * @content array of extraFieldName => value */
+	private $_saltExtraFields=array();
+
+	/**
+	 * @var Field[] Extra fields metadata
+	 * @content array of extraFieldName => Field */
+	private $_saltExtraFieldsMetadata=array();
+
+	/**
+	 * @var int Current object state : self::STATE_* 
+	 */
+	private $_saltState = self::STATE_NONE;
+
+	/**
+	 * @var mixed[] Contains values initially loaded from database or for new object (not in database)
+	 * @content array of fieldName => value */
+	private $_saltLoadValues = array();
+
+	/**
+	 * Register metadata of object
+	 * 
+	 * Sub classes have to implement this method for declaring all metadata
+	 * @return Field[]
+	 * @see Base::registerTableName()
+	 * @see Base::registerId()
+	 * @see Base::registerHelper()
+	 * @see Field
+	 */
+	abstract protected function metadata();
+
+	/**
+	 * doing some stuff after creating table
+	 * @return static[] objects to create in table
+	 */
+	public function initAfterCreateTable() {
+		// do nothing
+		return NULL;
+	}
+
+	/**
+	 * Create a new DAO object
+	 * @param string[] $loadedFields fields loaded by a query for this object. NULL if object created manually (default)
+	 * @param string[] $extraFields fields to add to instance of new objects. Useless for classic usage.
+	 */
+	public function __construct(array $loadedFields = NULL, array $extraFields = NULL) {
+		parent::__construct();
+		$extras = $this->initMetadata($loadedFields, $extraFields);
+	}
+
+	/**
+	 * Retrieve a singleton instance for access to metadata
+	 * @return static a singleton instance of the object
+	 */
+	public static function meta() {
+		$child = get_called_class();
+		if (!isset(self::$_saltMetadata[$child]['singleton'])) {
+			self::$_saltMetadata[$child]['singleton'] = new $child();
+			self::$_saltMetadata[$child]['singleton']->readonly();
+		}
+		return self::$_saltMetadata[$child]['singleton'];
+	}
+
+	/**
+	 * Create and return a new object of the same type
+	 * @param string[] $extraFields array of fieldName to add to the instance
+	 * @return static
+	 */
+	public function getNew($extraFields = NULL) {
+		$cl = get_class($this);
+		return new $cl(NULL, $extraFields);
+	}
+
+	/**
+	 * Get all Field declared in ::metadata()
+	 * @return Field[] list of all Field metadata : fieldName => Field */
+	public function getFieldsMetadata() {
+		return self::$_saltMetadata[get_called_class()]['fields'];
+	}
+
+	/**
+	 * Return the tablename registered with ::registerTableName()
+	 * @return string the table name 
+	 */
+	public function getTableName() {
+		return self::$_saltMetadata[get_called_class()]['tablename'];
+	}
+
+	/**
+	 * Get the value of the ID field. The ID field is registered with ::registerId() 
+	 * @return mixed value of id field
+	 */
+	public function getId() {
+		return $this->{$this->getIdField()};
+	}
+
+	/**
+	 * Get the name of the ID field registered with ::registerId()
+	 * @return string field name */
+	public function getIdField() {
+		return self::$_saltMetadata[get_called_class()]['idfield'];
+	}
+
+	/**
+	 * Retrieve an object by ID on a database
+	 * @param DBHelper $db The database to search object
+	 * @param mixed $id a value of the id field
+	 * @return static|NULL the first object with this id. All fields are loaded. Return NULL if no object found
+	 */
+	public function getById(DBHelper $db, $id) {
+		$q = new Query($this, TRUE);
+		$q->whereAnd($obj->getIdField(), '=', $id);
+		$r = $db->execQuery($q);
+		return first($r->data);
+	}
+
+	/**
+	 * Retrieve a list of object on a database
+	 * @param DBHelper $DB database to search objects
+	 * @param mixed[] $ids list of value to search
+	 * @return static[] associative array : id => object
+	 */
+	public function getByIds(DBHelper $DB, array $ids) {
+		$q = new Query($this, TRUE);
+		$idField = $this->getIdField();
+		$q->whereAnd($idField , 'IN', $ids);
+		$r = $DB->execQuery($q);
+		$result = array();
+		foreach($r->data as $obj) {
+			$result[$obj->$idField] = $obj;
+		}
+		return $result;
+	}
+	
+	/**
+	 * Register the fieldName will be returned by getId()
+	 * @param string $fieldName a field name registered in metadata()
+	 *
+	 * @see Base::getId() */
+	public static function registerId($fieldName) {
+		$child = get_called_class();
+		self::$_saltMetadata[$child]['idfield'] = $fieldName;
+	}
+
+	/**
+	 * Register the table name of the object in database
+	 * @param string $table the table name that will be used in query generation */
+	public static function registerTableName($table) {
+		$child = get_called_class();
+		self::$_saltMetadata[$child]['tablename'] = $table;
+	}
+
+	/**
+	 * Register a child class of ViewHelper for the class
+	 * @param string $class class name of ViewHelper that will by used in $this->VIEW/FORM/COLUMN */
+	public static function registerHelper($class) {
+		BaseViewHelper::setInstance(get_called_class(), $class);
+	}
+
+	/**
+	 * Initialize the class by calling metadata() (once by class) and setting default values (once by instance) if needed
+	 * @param string[] $loadedFields fields loaded by a query for this object
+	 * @param string[] $extraFields fields to add to new instance only
+	 * @throws Exception if metadata() function don't return an array of Field
+	 */
+	private function initMetadata(array $loadedFields = NULL, array $extraFields = NULL) {
+		$child = get_called_class();
+
+		if (!isset(self::$_saltMetadata[$child])) {
+			$meta = $this->metadata();
+			if (!is_array($meta) || (count($meta) == 0) || !(first($meta) instanceof Field)) {
+				throw new Exception($child.'.metadata() have to return a Field array');
+			}
+			foreach($meta as $field) {
+				self::$_saltMetadata[$child]['fields'][$field->name] = $field;
+			}
+		}
+		if ($this->_saltState === self::STATE_NONE) {
+			if ($loadedFields === NULL) {
+				$this->_saltState = self::STATE_NEW; // for manually created new object, load all default values
+				foreach(self::$_saltMetadata[$child]['fields'] as $key => $field) {
+					$this->_saltLoadValues[$key]=$field->defaultValue;
+					if ($field->defaultValue !== NULL) {
+						$this->_saltValues[$key]=$field->defaultValue; // for create in INSERT statement
+					}
+				}
+				if ($extraFields !== NULL) {
+					foreach($extraFields as $field) {
+						$fieldId = strtolower($field);
+						if (!isset(self::$_saltMetadata[$child]['fields'][$fieldId])) {
+							$this->_saltExtraFields[$fieldId] = NULL;
+							$this->_saltExtraFieldsMetadata[$fieldId] = Field::newText($fieldId, $field, TRUE);
+						}
+					}
+				}
+
+			} else {
+				$this->_saltState = self::STATE_LOADING; // for query loaded object, define all loaded fields
+				foreach($loadedFields as $field) {
+					if (isset(self::$_saltMetadata[$child]['fields'][$field])) {
+						$this->_saltLoadValues[$field] = NULL; // will be loaded by setter later
+					} else {
+						$fieldId = strtolower($field);
+						$this->_saltExtraFields[$fieldId] = NULL;
+						$this->_saltExtraFieldsMetadata[$fieldId] = Field::newText($fieldId, $field, TRUE);
+					}
+				}
+			} // else $loadedFields === NULL
+		} // if STATE_NONE
+
+	} // function initMetadata
+
+	/**
+	 * Retrieve a Field by field name
+	 * @param string $fieldName field name registered with metadata() or extra field constructor parameter
+	 * @param boolean $createIfNotExists if TRUE, create extra field if not exists, throw Exception otherwise
+	 * @return Field */
+	public function getField($fieldName, $createIfNotExists = FALSE) {
+		$fieldId = strtolower($fieldName);
+		if (!$this->checkFieldExists($fieldId, FALSE, $createIfNotExists)) {
+			return Field::newText($fieldId, $fieldName, TRUE);
+		}
+
+		if (isset($this->_saltExtraFieldsMetadata[$fieldId])) {
+			return $this->_saltExtraFieldsMetadata[$fieldId];
+		}
+
+		$child = get_class($this);
+		return self::$_saltMetadata[$child]['fields'][$fieldName];
+	}
+
+	/**
+	 * Check a field exist
+	 * @param string $fieldName
+	 * @param boolean $forValue also check field is loaded and value can be retrieve
+	 * @param boolean $doNotThrowException return FALSE if field does not exists instead of throwing exception
+	 * @return boolean TRUE if field exists
+	 * @throws Exception if field don't exists or is not loaded (if $forValue)
+	 */
+	private function checkFieldExists($fieldName, $forValue = FALSE, $doNotThrowException = FALSE) {
+		$this->initMetadata();
+
+		$child = get_class($this);
+
+		$fieldId = strtolower($fieldName);
+		
+		// value can be null. array_key_exists instead of isset
+		if (array_key_exists($fieldId, $this->_saltExtraFields)) {
+			return;
+		}
+		if (!isset(self::$_saltMetadata[$child]['fields'][$fieldName])) {
+			if ($doNotThrowException) {
+				return FALSE;
+			}
+			throw new Exception('Unknown field ['.$fieldName.'] for class ['.get_class($this).']');
+		}
+		// value can be null : array_key_exists instead of isset
+		if ($forValue && !array_key_exists($fieldName, $this->_saltLoadValues)) {
+			if ($doNotThrowException) {
+				return FALSE;
+			}
+			throw new Exception('Unloaded field ['.$fieldName.'] for class ['.get_class($this).']');
+		}
+		return TRUE;
+	}
+
+	/**
+	 * Return the value of field or extra field of object.
+	 * Can also return an _InternalFieldAccess if $fieldName is FORM or VIEW
+	 * @param string $fieldName
+	 * @return mixed the value of the field
+	 */
+	public function __get($fieldName) {
+		if ($fieldName === 'FORM') {
+			return $this->FORM();
+		}
+		if ($fieldName === 'VIEW') {
+			return $this->VIEW();
+		}
+		$this->checkFieldExists($fieldName, TRUE);
+		$fieldId = strtolower($fieldName);
+		// values can be null : array_key_exists instead of isset
+		if (array_key_exists($fieldId, $this->_saltExtraFields)) {
+			return $this->_saltExtraFields[$fieldId];
+		}
+		if (array_key_exists($fieldName, $this->_saltValues)) {
+			return $this->_saltValues[$fieldName];
+		}
+		return $this->_saltLoadValues[$fieldName];
+	}
+
+	/**
+	 * Set the internal state to LOADED
+	 * @internal Called after PDO populate for setting correct state.
+	 */
+	public function afterLoad() {
+		$this->checkState(self::STATE_LOADING);
+		$this->_saltState = self::STATE_LOADED;
+	}
+
+	/**
+	 * Check object state is in allowed states
+	 * @param int|int[] $state expected states for the object
+	 * @throws Exception if the object is not in one of the expected states
+	 */
+	public function checkState($state) {
+		if (!is_array($state)) {
+			$state = array($state);
+		}
+		if (!in_array($this->_saltState, $state, TRUE)) {
+			throw new Exception('Unexpected business object state '.$this->_saltState.' instead of expected '.implode(' or ',$state));
+		}
+	}
+
+	/**
+	 * Check object state is not in forbidden states
+	 * @param int|int[] $state forbidden states for the object
+	 * @param string $message error message for exception
+	 * @throws Exception if the object is in one of the forbidden states
+	 */
+	public function checkNotState($state, $message = NULL) {
+		if (!is_array($state)) {
+			$state = array($state);
+		}
+		if (in_array($this->_saltState, $state, TRUE)) {
+			if ($message === NULL) {
+				$message = 'Unexpected business object state '.$this->_saltState;
+			}
+			throw new Exception($message);
+		}
+	}
+
+	/**
+	 * Return all modified field since object creation
+	 * @return mixed[] fieldName => value
+	 */
+	public function getModifiedFields() {
+		return $this->_saltValues;
+	}
+
+
+	/**
+	 * Set a field value
+	 * @param string $fieldName the field to change
+	 * @param mixed $value the value
+	 */
+	public function __set($fieldName, $value) {
+
+		$this->checkNotState(self::STATE_READONLY, 'Cannot change a readonly object');
+		$this->checkNotState(self::STATE_DELETED, 'Cannot modify an object in DELETE state');
+
+		$this->checkFieldExists($fieldName, TRUE);
+
+		$field = $this->getField($fieldName);
+		$value = $field->transcodeType($value);
+		$field->validate($value);
+
+		$fieldId = strtolower($fieldName);
+		// value can be null : array_key_exists instead of isset
+		if (array_key_exists($fieldId, $this->_saltExtraFields)) {
+			$this->_saltExtraFields[$fieldId] = $value;
+		} else if ($this->_saltState === self::STATE_LOADING) {
+			// first load
+			$this->_saltLoadValues[$fieldName] = $value;
+		} else {
+			if (($value !== $this->_saltLoadValues[$fieldName]) || ($this->_saltState === self::STATE_NEW)) {
+				$this->_saltValues[$fieldName] = $value;
+			// value can be null : array_key_exists instead of isset
+			} else if (array_key_exists($fieldName, $this->_saltValues)) {
+				unset($this->_saltValues[$fieldName]);
+			}
+		}
+		if ($this->_saltState === self::STATE_LOADED) {
+			$this->_saltState = self::STATE_MODIFIED;
+		}
+	}
+
+	/**
+	 * Check object is a readonly object
+	 * @return boolean TRUE if the object is readonly (Base::meta() is a readonly object)
+	 */
+	public function isReadonly() {
+		return ($this->_saltState === self::STATE_READONLY);
+	}
+
+	/**
+	 * Check object has been modified
+	 * @return boolean TRUE if the object have been modified
+	 */
+	public function isModified() {
+		return ($this->_saltState === self::STATE_MODIFIED)
+				&& (count($this->getModifiedFields())>0);
+	}
+
+	/**
+	 * Check object is new : so, not loaded from a database
+	 * @return boolean TRUE if the object have been created with a new ...()
+	 */
+	public function isNew() {
+		return $this->_saltState === self::STATE_NEW;
+	}
+
+	/**
+	 * Check object is loaded from a database
+	 * @return boolean TRUE if the object have been loaded for a database by PDO
+	 */
+	public function isLoaded() {
+		return $this->_saltState === self::STATE_LOADED;
+	}
+
+	/**
+	 * Delete the current object. This method is called when object is used in a DeleteQuery constructor
+	 * @internal
+	 */
+	public function delete() {
+		$this->checkState(array(self::STATE_LOADED, self::STATE_DELETED));
+
+		$this->_saltState = self::STATE_DELETED;
+	}
+
+	/**
+	 * Make the object readonly. All changes will throw an exception.
+	 */
+	public function readonly() {
+		$this->checkNotState(self::STATE_MODIFIED, 'Cannot set a readonly state on a modified object');
+
+		$this->_saltState = self::STATE_READONLY;
+	}
+
+	/**
+	 * Return a text for a field
+	 * @param string $fieldName the fieldName to display
+	 * @param mixed $format (Optional, NULL) the format to use
+	 * @return string ViewHelper HTML protected text to display for $fieldName in $format
+	 */
+	public static function COLUMN($fieldName, $format=NULL) {
+		$field = self::meta()->getField($fieldName, TRUE);
+		return BaseViewHelper::getInstance(get_called_class())->column($field, $format);
+	}
+
+	/**
+	 * Return a text for a field value
+	 * @param mixed $format (Optional, NULL) format to use 
+	 * @return _InternalFieldAccess an object for access registered ViewHelper
+	 */
+	public function VIEW($format = NULL) {
+		$viewType = ViewControl::isText()?ViewControl::TEXT:ViewControl::SHOW;
+
+		return _InternalFieldAccess::getInstance($this, BaseViewHelper::getInstance(get_called_class()),
+					$viewType, $format);
+	}
+
+	/**
+	 * Return an HTML tag for modify a field value 
+	 * @param mixed $format (Optional, NULL) format to use
+	 * @return _InternalFieldAccess an object for access registered ViewHelper
+	 */
+	public function FORM($format = NULL) {
+		if (!ViewControl::isEdit()) {
+			return $this->VIEW($format);
+		}
+
+		return _InternalFieldAccess::getInstance($this, BaseViewHelper::getInstance(get_called_class()),
+					ViewControl::EDIT, $format);
+	}
+}
+
+/**
+ * Proxy for field access with ViewHelper
+ * @internal
+ */
+class _InternalFieldAccess {
+
+	/**
+	 * @var static original object */
+	private $_saltObject;
+	/**
+	 * @var ViewHelper the helper to delegate to. */
+	private $_saltHelper;
+	/**
+	 * @var string ViewControl type (EDIT, SHOW, TEXT) */
+	private $_saltViewType;
+
+	/**
+	 * @var mixed VIEW/FORM parameters */
+	private static $_saltFormat = NULL;
+
+	/**
+	 * @var _InternalFieldAccess[] cache of _InternalFieldAccess instances. */
+	private static $instances=array();
+
+	/**
+	 * Create a new _InternalFieldAccess
+	 * @param static $object the object to use for retrieve field value
+	 * @param ViewHelper $helper the helper to delegate
+	 * @param string $viewType one of ViewControl::EDIT|SHOW|TEXT
+	 */
+	private function __construct(Base $object, ViewHelper $helper, $viewType) {
+		$this->_saltObject = $object;
+		$this->_saltHelper = $helper;
+		$this->_saltViewType = $viewType;
+	}
+
+	/**
+	 * Retrieve an instance of _InternalFieldAccess
+	 * @param static $object the object to use for retrieve field value
+	 * @param BaseViewHelper $helper the helper to delegate
+	 * @param string $viewType one of ViewControl::EDIT|SHOW|TEXT
+	 * @param mixed $format parameter of VIEW of FORM method
+	 *
+	 * @return _InternalFieldAccess unique instance for the parameters
+	 */
+	public static function getInstance(Base $object, BaseViewHelper $helper, $viewType, $format = NULL) {
+		$key = $object->getInternalId().'/'.$helper->getInternalId().'/'.$viewType;
+
+		if (!isset(self::$instances[$key])) {
+			self::$instances[$key]=new _InternalFieldAccess($object, $helper, $viewType);
+		}
+
+		self::$_saltFormat = $format;
+
+		return self::$instances[$key];
+	}
+
+	/**
+	 * Return a string from a ViewHelper 
+	 * @param string $fieldName the field to format
+	 * @return string value of $fieldName, can be a non-HTML protected value (if ViewControl::text(),
+	 * 		a HTML protected value (if ViewControl::show()) or a HTML form tag (if ViewControl::edit())
+	 */
+	public function __get($fieldName) {
+		$field = $this->_saltObject->getField($fieldName);
+		$value = $this->_saltObject->{$field->name};
+
+		$format = NULL;
+		$params = NULL;
+		if (!is_array(self::$_saltFormat)) {
+			$format = self::$_saltFormat;
+		} else {
+			$params = self::$_saltFormat;
+			if (isset($params['format'])) {
+				$format = $params['format'];
+			}
+		}
+
+		switch($this->_saltViewType) {
+			case ViewControl::EDIT : $result = $this->_saltHelper->edit($this->_saltObject, $field, $value, $format, $params); break;
+			case ViewControl::TEXT : $result = $this->_saltHelper->text($this->_saltObject, $field, $value, $format, $params); break;
+			case ViewControl::SHOW : // default
+			default :				 $result = $this->_saltHelper->show($this->_saltObject, $field, $value, $format, $params);
+
+		}
+
+		self::$_saltFormat = NULL;
+
+		return $result;
+	}
+}
