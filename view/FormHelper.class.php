@@ -567,7 +567,7 @@ class FormHelper {
 		}
 
 		$rawValue = $value;
-		if (array_key_exists(self::PARAM_RAW_VALUE, $attrs)) {
+		if (isset($attrs[self::PARAM_RAW_VALUE])) { // if PARAM_RAW_VALUE is null, don't set, finding an option always failed
 			$rawValue = $attrs[self::PARAM_RAW_VALUE];
 		}
 
