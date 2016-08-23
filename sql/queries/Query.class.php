@@ -320,6 +320,24 @@ class Query extends BaseQuery {
 	}
 
 	/**
+	 * Get a selected expression added in query by an alias for reuse it
+	 *
+	 * Example : <pre>$query->select(SqlExpr::func('count', '*'), 'nb');
+	 * $query->orderDesc($query->getSelect('nb'));</pre>
+	 * @param string $alias name of an alias
+	 * @return SqlExpr the expression registered for this alias
+	 */
+	public function getSelect($alias) {
+		foreach($this->fields as $select) {
+			list($expr, $aliasName) = $select;
+			if ($alias === $aliasName) {
+				return $expr;
+			}
+		}
+		throw new SaltException('Cannot find the alias ['.$alias.'] in the query');
+	}
+
+	/**
 	 * Add a where clause with OR
 	 * @param string|SqlExpr $fieldOrExpr fieldName or SqlExpr
 	 * @param string $operator operator to use : '=', 'LIKE', 'IN', etc...
