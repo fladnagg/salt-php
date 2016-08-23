@@ -54,7 +54,7 @@ abstract class Base extends Identifiable {
 	private $_saltExtraFieldsMetadata=array();
 
 	/**
-	 * @var int Current object state : self::STATE_* 
+	 * @var int Current object state : self::STATE_*
 	 */
 	private $_saltState = self::STATE_NONE;
 
@@ -65,7 +65,7 @@ abstract class Base extends Identifiable {
 
 	/**
 	 * Register metadata of object
-	 * 
+	 *
 	 * Sub classes have to implement this method for declaring all metadata
 	 * @return Field[]
 	 * @see Base::registerTableName()
@@ -126,14 +126,14 @@ abstract class Base extends Identifiable {
 
 	/**
 	 * Return the tablename registered with ::registerTableName()
-	 * @return string the table name 
+	 * @return string the table name
 	 */
 	public function getTableName() {
 		return self::$_saltMetadata[get_called_class()]['tablename'];
 	}
 
 	/**
-	 * Get the value of the ID field. The ID field is registered with ::registerId() 
+	 * Get the value of the ID field. The ID field is registered with ::registerId()
 	 * @return mixed value of id field
 	 */
 	public function getId() {
@@ -177,7 +177,7 @@ abstract class Base extends Identifiable {
 		}
 		return $result;
 	}
-	
+
 	/**
 	 * Register the fieldName will be returned by getId()
 	 * @param string $fieldName a field name registered in metadata()
@@ -232,10 +232,9 @@ abstract class Base extends Identifiable {
 				}
 				if ($extraFields !== NULL) {
 					foreach($extraFields as $field) {
-						$fieldId = strtolower($field);
-						if (!isset(self::$_saltMetadata[$child]['fields'][$fieldId])) {
-							$this->_saltExtraFields[$fieldId] = NULL;
-							$this->_saltExtraFieldsMetadata[$fieldId] = Field::newText($fieldId, $field, TRUE);
+						if (!isset(self::$_saltMetadata[$child]['fields'][$field])) {
+							$this->_saltExtraFields[$field] = NULL;
+							$this->_saltExtraFieldsMetadata[$field] = Field::newText($field, $field, TRUE);
 						}
 					}
 				}
@@ -246,9 +245,8 @@ abstract class Base extends Identifiable {
 					if (isset(self::$_saltMetadata[$child]['fields'][$field])) {
 						$this->_saltLoadValues[$field] = NULL; // will be loaded by setter later
 					} else {
-						$fieldId = strtolower($field);
-						$this->_saltExtraFields[$fieldId] = NULL;
-						$this->_saltExtraFieldsMetadata[$fieldId] = Field::newText($fieldId, $field, TRUE);
+						$this->_saltExtraFields[$field] = NULL;
+						$this->_saltExtraFieldsMetadata[$field] = Field::newText($field, $field, TRUE);
 					}
 				}
 			} // else $loadedFields === NULL
@@ -262,13 +260,12 @@ abstract class Base extends Identifiable {
 	 * @param boolean $createIfNotExists if TRUE, create extra field if not exists, throw Exception otherwise
 	 * @return Field */
 	public function getField($fieldName, $createIfNotExists = FALSE) {
-		$fieldId = strtolower($fieldName);
-		if (!$this->checkFieldExists($fieldId, FALSE, $createIfNotExists)) {
-			return Field::newText($fieldId, $fieldName, TRUE);
+		if (!$this->checkFieldExists($fieldName, FALSE, $createIfNotExists)) {
+			return Field::newText($fieldName, $fieldName, TRUE);
 		}
 
-		if (isset($this->_saltExtraFieldsMetadata[$fieldId])) {
-			return $this->_saltExtraFieldsMetadata[$fieldId];
+		if (isset($this->_saltExtraFieldsMetadata[$fieldName])) {
+			return $this->_saltExtraFieldsMetadata[$fieldName];
 		}
 
 		$child = get_class($this);
@@ -288,10 +285,8 @@ abstract class Base extends Identifiable {
 
 		$child = get_class($this);
 
-		$fieldId = strtolower($fieldName);
-		
 		// value can be null. array_key_exists instead of isset
-		if (array_key_exists($fieldId, $this->_saltExtraFields)) {
+		if (array_key_exists($fieldName, $this->_saltExtraFields)) {
 			return;
 		}
 		if (!isset(self::$_saltMetadata[$child]['fields'][$fieldName])) {
@@ -324,10 +319,9 @@ abstract class Base extends Identifiable {
 			return $this->VIEW();
 		}
 		$this->checkFieldExists($fieldName, TRUE);
-		$fieldId = strtolower($fieldName);
 		// values can be null : array_key_exists instead of isset
-		if (array_key_exists($fieldId, $this->_saltExtraFields)) {
-			return $this->_saltExtraFields[$fieldId];
+		if (array_key_exists($fieldName, $this->_saltExtraFields)) {
+			return $this->_saltExtraFields[$fieldName];
 		}
 		if (array_key_exists($fieldName, $this->_saltValues)) {
 			return $this->_saltValues[$fieldName];
@@ -401,10 +395,9 @@ abstract class Base extends Identifiable {
 		$value = $field->transcodeType($value);
 		$field->validate($value);
 
-		$fieldId = strtolower($fieldName);
 		// value can be null : array_key_exists instead of isset
-		if (array_key_exists($fieldId, $this->_saltExtraFields)) {
-			$this->_saltExtraFields[$fieldId] = $value;
+		if (array_key_exists($fieldName, $this->_saltExtraFields)) {
+			$this->_saltExtraFields[$fieldName] = $value;
 		} else if ($this->_saltState === self::STATE_LOADING) {
 			// first load
 			$this->_saltLoadValues[$fieldName] = $value;
@@ -486,7 +479,7 @@ abstract class Base extends Identifiable {
 
 	/**
 	 * Return a text for a field value
-	 * @param mixed $format (Optional, NULL) format to use 
+	 * @param mixed $format (Optional, NULL) format to use
 	 * @return _InternalFieldAccess an object for access registered ViewHelper
 	 */
 	public function VIEW($format = NULL) {
@@ -497,7 +490,7 @@ abstract class Base extends Identifiable {
 	}
 
 	/**
-	 * Return an HTML tag for modify a field value 
+	 * Return an HTML tag for modify a field value
 	 * @param mixed $format (Optional, NULL) format to use
 	 * @return _InternalFieldAccess an object for access registered ViewHelper
 	 */
@@ -569,7 +562,7 @@ class _InternalFieldAccess {
 	}
 
 	/**
-	 * Return a string from a ViewHelper 
+	 * Return a string from a ViewHelper
 	 * @param string $fieldName the field to format
 	 * @return string value of $fieldName, can be a non-HTML protected value (if ViewControl::text(),
 	 * 		a HTML protected value (if ViewControl::show()) or a HTML form tag (if ViewControl::edit())
