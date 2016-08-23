@@ -78,10 +78,10 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * Create a new SqlExpr for an SQL function
 	 * @param string $name name of the function
-	 * @param SqlExpr ... $args list of function arguments.
+	 * @param mixed|SqlExpr ... $args list of function arguments. All arg that is not a SqlExpr is converted with SqlExpr::value($arg)
 	 * @return SqlExpr
 	 */
-	public static function func($name, SqlExpr $args = NULL) {
+	public static function func($name, $args = NULL) {
 		return new SqlExpr(self::FUNC, func_get_args());
 	}
 
@@ -93,6 +93,17 @@ class SqlExpr extends SqlBindField {
 	public static function value($value) {
 		return new SqlExpr(self::VALUE, $value);
 	}
+
+// 	/**
+// 	 * Create a new SqlExpr for a static text
+// 	 *
+// 	 * Warning : $text HAVE TO BE escaped for sql usage, we recommand to do NOT use user input in it.
+// 	 * @param string $text text to transform in SqlExpr.
+// 	 * @return \salt\SqlExpr
+// 	 */
+// 	public static function text($text) {
+// 		return new SqlExpr(self::TEXT, $text);
+// 	}
 
 	/**
 	 * Create a new SqlExpr for a field
@@ -216,11 +227,20 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * Use a template to format SqlExpr
 	 * @param string $template template with TEMPLATE_MAIN and TEMPLATE_PARAM if necessary
-	 * @param SqlExpr[] $args list of parameters
+	 * @param SqlExpr|mixed ... $args list of parameters. Parameters that are not SqlExpr are converted with SqlExpr::value()
 	 * @return SqlExpr current object
 	 */
-	public function template($template, $args = array()) {
-		$this->template = array($template, $args);
+	public function template($template) {
+		$args = func_get_args();
+		array_shift($args);
+		$params = array();
+		foreach($args as $arg) {
+			if (!($arg instanceof SqlExpr)) {
+				$arg = SqlExpr::value($arg);
+			}
+			$params[] = $arg;
+		}
+		$this->template = array($template, $params);
 		return $this;
 	}
 
@@ -380,6 +400,11 @@ class SqlExpr extends SqlBindField {
 				$funcName = array_shift($args);
 				$params = array();
 				foreach($args as $p) {
+
+					if (!($p instanceof SqlExpr)) {
+						$p = SqlExpr::value($p);
+					}
+
 					$params[] = $p->toSQL();
 					$this->binds = array_merge($this->binds, $p->getBinds());
 				}
