@@ -23,6 +23,9 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * type of SqlExpr : a field */
 	const FIELD=2;
+	/**
+	 * type of SqlExpr : a static text */
+	const TEXT=3;
 
 	/**
 	 * template replaced by the main source of SqlExpr */
@@ -94,16 +97,19 @@ class SqlExpr extends SqlBindField {
 		return new SqlExpr(self::VALUE, $value);
 	}
 
-// 	/**
-// 	 * Create a new SqlExpr for a static text
-// 	 *
-// 	 * Warning : $text HAVE TO BE escaped for sql usage, we recommand to do NOT use user input in it.
-// 	 * @param string $text text to transform in SqlExpr.
-// 	 * @return \salt\SqlExpr
-// 	 */
-// 	public static function text($text) {
-// 		return new SqlExpr(self::TEXT, $text);
-// 	}
+	/**
+	 * Create a new SqlExpr for a static text
+	 *
+	 * Warning : $text HAVE TO BE escaped for sql usage, we recommand to do NOT use user input in it.<br/>
+	 * - Number is used unchanged<br/>
+	 * - Boolean is converted to 0/1<br/>
+	 * - Text is surrounded with ''
+	 * @param string $text text to transform in SqlExpr.
+	 * @return \salt\SqlExpr
+	 */
+	public static function text($text) {
+		return new SqlExpr(self::TEXT, $text);
+	}
 
 	/**
 	 * Create a new SqlExpr for a field
@@ -363,7 +369,7 @@ class SqlExpr extends SqlBindField {
 				if (($this->setter !== NULL)
 				&& ($this->data === NULL)
 				&& (!$this->setter->nullable)) {
-					throw new Exception('Cannot set a NULL value to a non-nullable field : '.$this->setter->name);
+					throw new SaltException('Cannot set a NULL value to a non-nullable field : '.$this->setter->name);
 				}
 
 				if ($this->data === NULL) {
@@ -417,6 +423,19 @@ class SqlExpr extends SqlBindField {
 				if ($this->type === NULL) {
 					$this->type = $field->type;
 					$this->dateFormat = $field->format;
+				}
+			break;
+			case self::TEXT:
+				if ($this->data === NULL) {
+					$s.='NULL';
+				} else if (!is_scalar($this->data)) {
+					throw new SaltException('Cannot use a not scalar value in text()');
+				} else if (is_numeric($this->data)) {
+					$s.=$this->data;
+				} else if (is_bool($this->data)) {
+					$s.=($this->data)?1:0;
+				} else {
+					$s.='\''.$this->data.'\'';
 				}
 			break;
 		}
