@@ -120,24 +120,19 @@ class Salt {
 	/**
 	 * Load a class
 	 * @param string $className Class name with namespace to load
-	 * @throws SaltException if the class don't exists in folders added with self::addClassFolder()
+	 * @return boolean TRUE if class found, FALSE otherwise
 	 */
 	public static function loadClass($className) {
 		Benchmark::increment('salt.classes');
-		//$className = last(explode('\\', $className));
 		if (isset(self::$ALL_CLASSES[$className])) {
 			Benchmark::start('salt.loadClasses');
 			include_once(self::$ALL_CLASSES[$className]);
 			Benchmark::stop('salt.loadClasses');
-		} else {
-			$caller = debug_backtrace();
-			if (count($caller) > 0) {
-				$caller = $caller[1]['file'].':'.$caller[1]['line'];
-			} else {
-				$caller = 'unknown';
-			}
-			throw new SaltException('Unable to find the class '.$className.' required by '.$caller);
+			return TRUE;
 		}
+		// Give a chance to another classloader to find the class
+		//throw new SaltException('Unable to find the class '.$className.' required by '.$caller);
+		return FALSE;
 	}
 
 	/**
