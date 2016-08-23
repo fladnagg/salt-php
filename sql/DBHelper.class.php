@@ -161,7 +161,7 @@ class DBHelper {
 		}
 		$r = $query->initResults($pagination, $count);
 
-		if (!$query->isEmptyResults()) {
+		if (!$query->isEmptyResults() && ($count > 0)) {
 
 			$st = $this->exec($query, false, $pagination);
 
