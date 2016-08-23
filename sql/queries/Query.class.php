@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * Query class
  *
@@ -71,13 +71,13 @@ class Query extends BaseQuery {
 
 	/**
 	 * Force the query to return empty results without execute.
-	 * 
-	 * This can be used if the query contains an IN where condition with an empty array : Executing the query result in an exception, 
+	 *
+	 * This can be used if the query contains an IN where condition with an empty array : Executing the query result in an exception,
 	 * but we can use this function for return an empty result without exception : <pre>
 	 *  $q->whereAnd('ids', 'IN', $values); // will produce a bad where clause : "ids IN ()" if $values is empty
 	 * 	if (count($values) === 0) $q->forceEmptyResults();
 	 * 	$db->execQuery($q); // valid, will not execute query, so not throw exception
-	 * </pre> 
+	 * </pre>
 	 */
 	public function forceEmptyResults() {
 		$this->emptyResults = TRUE;
@@ -174,7 +174,7 @@ class Query extends BaseQuery {
 	}
 
 	/**
-	 * Add a field in order clause, with ASC 
+	 * Add a field in order clause, with ASC
 	 * @param string|SqlExpr $fieldOrExpr the field to order by ASC
 	 */
 	public function orderAsc($fieldOrExpr) {
@@ -317,6 +317,24 @@ class Query extends BaseQuery {
 	 */
 	public function getField($field) {
 		return SqlExpr::field($this->alias, $this->obj->getField($field));
+	}
+
+	/**
+	 * Get a selected expression added in query by an alias for reuse it
+	 *
+	 * Example : <pre>$query->select(SqlExpr::func('count', '*'), 'nb');
+	 * $query->orderDesc($query->getSelect('nb'));</pre>
+	 * @param string $alias name of an alias
+	 * @return SqlExpr the expression registered for this alias
+	 */
+	public function getSelect($alias) {
+		foreach($this->fields as $select) {
+			list($expr, $aliasName) = $select;
+			if ($alias === $aliasName) {
+				return $expr;
+			}
+		}
+		throw new SaltException('Cannot find the alias ['.$alias.'] in the query');
 	}
 
 	/**
@@ -474,7 +492,7 @@ class Query extends BaseQuery {
 
 	/**
 	 * add an query to an ON clause of an existing join
-	 * @param Query $other the other query for retrieve the join clause 
+	 * @param Query $other the other query for retrieve the join clause
 	 * @param Query $whereQuery the query to add in ON clause
 	 */
 	public function joinOnAndQuery(Query $other, Query $whereQuery) {
@@ -567,18 +585,17 @@ class Query extends BaseQuery {
 	}
 
 	/**
-	 * get the SQL text for FROM, JOIN, WHERE, GROUP BY parts 
+	 * get the SQL text for FROM, JOIN, WHERE, GROUP BY parts
 	 * @return string SQL text query with common parts only
 	 */
 	protected function toBaseSQL() {
 		$sql=' FROM '.$this->resolveTable();
 
-		$sql.=$this->joinsToSQL();
-		$sql.=$this->wheresToSQL();
+		$sql.=$this->buildJoinClause();
+		$sql.=$this->buildWhereClause();
 
-		if (count($this->groups) > 0) {
-			$sql.=' GROUP BY '.implode(', ', $this->groups);
-		}
+		$sql.=$this->buildGroupClause();
+
 		return $sql;
 	}
 
@@ -586,7 +603,7 @@ class Query extends BaseQuery {
 	 * get the SQL text for ORDER BY part
 	 * @return string SQL text for ORDER BY part
 	 */
-	protected function orderToSQL() {
+	protected function buildOrderClause() {
 		$sql='';
 		if (count($this->orders)>0) {
 			$sql.=' ORDER BY '.implode(', ', $this->orders);
@@ -595,10 +612,22 @@ class Query extends BaseQuery {
 	}
 
 	/**
+	 * get the SQL text for GROUP BY part
+	 * @return string SQL text for GROUP BY part
+	 */
+	protected function buildGroupClause() {
+		$sql = '';
+		if (count($this->groups) > 0) {
+			$sql.=' GROUP BY '.implode(', ', $this->groups);
+		}
+		return $sql;
+	}
+
+	/**
 	 * get the SQL text for JOIN part
 	 * @return string SQL text query with JOIN part
 	 */
-	protected function joinsToSQL() {
+	protected function buildJoinClause() {
 		$sql='';
 		if (count($this->joins)>0) {
 			foreach($this->joins as $alias => $join) {
@@ -612,7 +641,7 @@ class Query extends BaseQuery {
 	 * get the SQL text for WHERE part
 	 * @return string SQL text query with WHERE part
 	 */
-	protected function wheresToSQL() {
+	protected function buildWhereClause() {
 		$sql='';
 		if (count($this->wheres)>0) {
 			$sql.=' WHERE '.implode(' ', $this->wheres);
@@ -626,14 +655,41 @@ class Query extends BaseQuery {
 	 * @return string SQL text of count(*) query
 	 */
 	public function toCountSQL() {
-		$sql='SELECT count(*) as nb';
-		if (count($this->groups) === 0) {
-			$sql.=$this->toBaseSQL();
-		} else {
+		$sql='SELECT COUNT(*) as nb';
+
+		$selectClause = $this->buildSelectClause();
+		$hasDistinct = (strpos(strtolower($selectClause), 'distinct') !== FALSE);
+
+		if ($hasDistinct) {
+			// if select clause have a distinct... we have to count the complete subquery...
+			$sql.=' FROM ( SELECT '.$selectClause.$this->toBaseSQL().') c';
+		} else if (count($this->groups) > 0) {
 			// with groups, count() need to be executed on a sub select query...
 			// @see http://stackoverflow.com/questions/364825/getting-the-number-of-rows-with-a-group-by-query
-			$sql.=' FROM ( SELECT 1 '.$this->toBaseSQL().' ) c';
+			$sql.=' FROM ( SELECT 1'.$this->toBaseSQL().' ) c';
+		} else {
+			// more simple query otherwise
+			$sql.=$this->toBaseSQL();
 		}
+
+		return $sql;
+	}
+
+	/**
+	 * get the SQL text for the SELECT clause
+	 * @return string SQL text of all retrieved fields
+	 */
+	protected function buildSelectClause() {
+		$sql='';
+		$fields=array();
+		foreach($this->fields as $data) {
+			/** @var SqlExpr $expr */
+			list($expr, $alias) = $data;
+
+			$this->binds = array_merge($this->binds, $expr->getBinds());
+			$fields[]=$expr->toSQL().' as '.$alias;
+		}
+		$sql.=implode(', ', $fields);
 		return $sql;
 	}
 
@@ -644,18 +700,12 @@ class Query extends BaseQuery {
 	 */
 	public function toSQL(Pagination $pagination = NULL) {
 		$sql='SELECT ';
-		$fields=array();
-		foreach($this->fields as $data) {
-			/** @var SqlExpr $expr */
-			list($expr, $alias) = $data;
 
-			$this->binds = array_merge($this->binds, $expr->getBinds());
-			$fields[]=$expr->toSQL().' as '.$alias;
-		}
-		$sql.=implode(', ', $fields);
+		$sql.=$this->buildSelectClause();
+
 		$sql.=$this->toBaseSQL();
 
-		$sql.=$this->orderToSQL();
+		$sql.=$this->buildOrderClause();
 
 		if ($pagination != NULL) {
 
