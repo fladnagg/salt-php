@@ -17,6 +17,8 @@ abstract class Base extends Identifiable {
 	const _SALT_STATE_NONE=0;
 	/** State of a new created objet */
 	const _SALT_STATE_NEW=10;
+	/** State of an object created by PDO but not populated yet. After populate, the object will be at NEW state */
+	const _SALT_STATE_NEW_LOADING=11;
 	/** State of an object created by PDO but not populated yet */
 	const _SALT_STATE_LOADING=21;
 	/** State of an object created and populated by PDO fetch */
@@ -88,10 +90,11 @@ abstract class Base extends Identifiable {
 	 * Create a new DAO object
 	 * @param string[] $loadedFields fields loaded by a query for this object. NULL if object created manually (default)
 	 * @param string[] $extraFields fields to add to instance of new objects. Useless for classic usage.
+	 * @param boolean $loadAsNew (Optional, FALSE) if TRUE, the afterLoad() method set the state to NEW instead of LOADED
 	 */
-	public function __construct(array $loadedFields = NULL, array $extraFields = NULL) {
+	public function __construct(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
 		parent::__construct();
-		$extras = $this->initMetadata($loadedFields, $extraFields);
+		$extras = $this->initMetadata($loadedFields, $extraFields, $loadAsNew);
 	}
 
 	/**
@@ -207,9 +210,10 @@ abstract class Base extends Identifiable {
 	 * Initialize the class by calling metadata() (once by class) and setting default values (once by instance) if needed
 	 * @param string[] $loadedFields fields loaded by a query for this object
 	 * @param string[] $extraFields fields to add to new instance only
+	 * @param boolean $loadAsNew if TRUE, the afterLoad() method set the state to NEW instead of LOADED
 	 * @throws SaltException if metadata() function don't return an array of Field
 	 */
-	private function initMetadata(array $loadedFields = NULL, array $extraFields = NULL) {
+	private function initMetadata(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
 		$child = get_called_class();
 
 		if (!isset(self::$_saltMetadata[$child])) {
@@ -223,7 +227,12 @@ abstract class Base extends Identifiable {
 		}
 		if ($this->_saltState === self::_SALT_STATE_NONE) {
 			if ($loadedFields === NULL) {
-				$this->_saltState = self::_SALT_STATE_NEW; // for manually created new object, load all default values
+				if ($loadAsNew) {
+					$this->_saltState = self::_SALT_STATE_NEW_LOADING;
+				} else {
+					$this->_saltState = self::_SALT_STATE_NEW;
+				}
+				// for manually created new object, load all default values
 				foreach(self::$_saltMetadata[$child]['fields'] as $key => $field) {
 					$this->_saltLoadValues[$key]=$field->defaultValue;
 					if ($field->defaultValue !== NULL) {
@@ -330,12 +339,12 @@ abstract class Base extends Identifiable {
 	}
 
 	/**
-	 * Set the internal state to LOADED
+	 * Change the internal state after object has been loaded by PDO fetch
 	 * @internal Called after PDO populate for setting correct state.
 	 */
 	public function afterLoad() {
-		$this->checkState(self::_SALT_STATE_LOADING);
-		$this->_saltState = self::_SALT_STATE_LOADED;
+		$this->checkState(array(self::_SALT_STATE_LOADING, self::_SALT_STATE_NEW_LOADING));
+		$this->_saltState = ($this->_saltState === self::_SALT_STATE_LOADING)?self::_SALT_STATE_LOADED:self::_SALT_STATE_NEW;
 	}
 
 	/**
@@ -407,7 +416,7 @@ abstract class Base extends Identifiable {
 			// first load
 			$this->_saltLoadValues[$fieldName] = $value;
 		} else {
-			if (($value !== $this->_saltLoadValues[$fieldName]) || ($this->_saltState === self::_SALT_STATE_NEW)) {
+			if (($value !== $this->_saltLoadValues[$fieldName]) || $this->isNew()) {
 				$this->_saltValues[$fieldName] = $value;
 			// value can be null : array_key_exists instead of isset
 			} else if (array_key_exists($fieldName, $this->_saltValues)) {
@@ -441,7 +450,7 @@ abstract class Base extends Identifiable {
 	 * @return boolean TRUE if the object have been created with a new ...()
 	 */
 	public function isNew() {
-		return $this->_saltState === self::_SALT_STATE_NEW;
+		return ($this->_saltState === self::_SALT_STATE_NEW || $this->_saltState === self::_SALT_STATE_NEW_LOADING);
 	}
 
 	/**

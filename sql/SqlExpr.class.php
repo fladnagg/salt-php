@@ -83,7 +83,17 @@ class SqlExpr extends SqlBindField {
 	 * @return SqlExpr
 	 */
 	public static function func($name, $args = NULL) {
-		return new SqlExpr(self::FUNC, func_get_args());
+
+		$args = func_get_args();
+		$func = array_shift($args);
+		foreach($args as $k => $arg) {
+			if (!($arg instanceof SqlExpr)) {
+				$args[$k] = SqlExpr::value($arg);
+			}
+		}
+		array_unshift($args, $func);
+
+		return new SqlExpr(self::FUNC, $args);
 	}
 
 	/**
@@ -404,11 +414,6 @@ class SqlExpr extends SqlBindField {
 				$funcName = array_shift($args);
 				$params = array();
 				foreach($args as $p) {
-
-					if (!($p instanceof SqlExpr)) {
-						$p = SqlExpr::value($p);
-					}
-
 					$params[] = $p->toSQL();
 					$this->binds = array_merge($this->binds, $p->getBinds());
 				}

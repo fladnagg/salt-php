@@ -149,9 +149,10 @@ class DBHelper {
 	 * If $pagination is provided and not locked, a count query is also executed
 	 * @param Query $query the query
 	 * @param Pagination $pagination Pagination object.
+	 * @param Base $bindingObject (Optional) bind to another object type. All returned objects are in NEW state instead of LOADED
 	 * @return DBResult result of the query
 	 */
-	public function execQuery(Query $query, Pagination $pagination = NULL) {
+	public function execQuery(Query $query, Pagination $pagination = NULL, Base $bindingObject = NULL) {
 
 		$count = NULL;
 		if (($pagination != NULL) && !$pagination->isLocked() && !$query->isEmptyResults()) {
@@ -164,8 +165,15 @@ class DBHelper {
 			$st = $this->exec($query, false, $pagination);
 
 			$fields = $query->getSelectFields();
+			$binding = $query->getBindingClass();
+
+			if ($bindingObject !== NULL) {
+				$binding = get_class($bindingObject);
+				$fields = NULL;
+			}
+
 			try {
-				$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $query->getBindingClass(), array($fields));
+				$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $binding, array($fields, NULL, ($bindingObject !== NULL)));
 			} catch (\PDOException $ex) {
 				throw new DBException('Error in populate object during fetch from the query ', $query->toSQL($pagination), $ex);
 			} catch (\Exception $ex) {
