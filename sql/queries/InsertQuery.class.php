@@ -67,7 +67,7 @@ class InsertQuery extends BaseQuery {
 			foreach($this->fields as $f) {
 				$expr = SqlExpr::value($o->$f)->asSetter($this->obj->getField($f));
 				$sets[$f] = $this->resolveFieldName('INSERT', $expr);
-				$this->binds = array_merge($this->binds, $expr->getBinds());
+				//$this->binds = array_merge($this->binds, $expr->getBinds()); // already done by resolveFieldName
 			}
 			$this->sets[] = $sets;
 		}

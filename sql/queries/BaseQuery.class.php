@@ -67,8 +67,7 @@ abstract class BaseQuery extends SqlBindField {
 	protected function resolveFieldName($source, $fieldNameOrValue, $fieldOfValue = NULL) {
 		if ($fieldNameOrValue instanceof SqlExpr) {
 			if (count($fieldNameOrValue->getBinds()) > 0) {
-				$this->binds=array_merge($this->binds, $fieldNameOrValue->getBinds());
-				$this->addBindsSource($source, array_keys($fieldNameOrValue->getBinds()));
+				$this->mergeBinds($fieldNameOrValue, $source);
 			}
 			return $fieldNameOrValue->toSQL();
 		}
@@ -127,6 +126,32 @@ abstract class BaseQuery extends SqlBindField {
 			}
 		}
 		return $binds;
+	}
+
+	/**
+	 * Merge binds of another query with current object
+	 * @param SqlBindField $other the binds to add in current object
+	 * @param string $source Optional, restrict merge to this source type only
+	 */
+	protected function mergeBinds(SqlBindField $other, $source = NULL) {
+		if (!($other instanceof BaseQuery)) {
+			$otherBinds = $other->getBinds();
+			$otherBindsSource = array($source => $otherBinds);
+		} else if ($source !== NULL) {
+			$otherBinds = $other->getBindsBySource($source);
+			$otherBindsSource = $other->bindsSource;
+		} else {
+			$otherBinds = $other->getBinds();
+			$otherBindsSource = $other->bindsSource;
+		}
+
+		$this->binds = array_merge($this->binds, $otherBinds);
+
+		foreach($otherBindsSource as $otherSource => $otherBinds) {
+			if (($source === NULL) || ($source === $otherSource)) {
+				$this->addBindsSource($otherSource, $otherBinds);
+			}
+		}
 	}
 
 	/**

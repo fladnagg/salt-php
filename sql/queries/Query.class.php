@@ -216,7 +216,10 @@ class Query extends BaseQuery {
 	private function addWhereExists($type, Query $otherQuery, $exists = TRUE) {
 		$this->addWhereClause($type, ($exists?'':'NOT ').'EXISTS (SELECT 1 '.$otherQuery->toBaseSQL().')');
 
-		$this->binds=array_merge($this->binds, $otherQuery->getBindsBySource('JOIN', 'WHERE', 'GROUP'));
+		$this->mergeBinds($other, 'JOIN');
+		$this->mergeBinds($other, 'WHERE');
+		$this->mergeBinds($other, 'GROUP');
+		//$this->binds=array_merge($this->binds, $otherQuery->getBindsBySource('JOIN', 'WHERE', 'GROUP'));
 	}
 
 	/**
@@ -287,8 +290,8 @@ class Query extends BaseQuery {
 	private function addWhereQuery($type, Query $subQuery) {
 		if ($subQuery->alias == $this->alias) {
 			$this->addWhereClause($type, '('.implode(' ',$subQuery->wheres).')');
-			$this->binds=array_merge($this->binds, $subQuery->getBindsBySource('WHERE'));
-			//$this->binds=array_merge($this->binds, $subQuery->getBinds());
+			//$this->binds=array_merge($this->binds, $subQuery->getBindsBySource('WHERE'));
+			$this->mergeBinds($subQuery, 'WHERE');
 		} else {
 			throw new SaltException('Cannot use a subquery on a different table of the main query');
 		}
@@ -446,7 +449,7 @@ class Query extends BaseQuery {
 		$this->joins[$other->alias] = $join;
 
 		if (count($other->binds) > 0) {
-			$this->binds=array_merge($this->binds, $other->binds);
+			$this->mergeBinds($other);
 		}
 
 		if ($withOtherDatas) {
@@ -515,7 +518,7 @@ class Query extends BaseQuery {
 	 * @param Query $whereQuery the query to add in ON clause
 	 */
 	private function addJoinOnQuery($type, Query $other, Query $whereQuery) {
-		$this->binds=array_merge($this->binds, $whereQuery->getBindsBySource('WHERE'));
+		$this->mergeBinds($whereQuery, 'WHERE');
 		$this->joins[$other->alias]['on'][]=' '.$type.' ('.implode(' ', $whereQuery->wheres).')';
 	}
 
@@ -686,7 +689,7 @@ class Query extends BaseQuery {
 			/** @var SqlExpr $expr */
 			list($expr, $alias) = $data;
 
-			$this->binds = array_merge($this->binds, $expr->getBinds());
+			$this->mergeBinds($expr, 'SELECT');
 			$fields[]=$expr->toSQL().' as '.$alias;
 		}
 		$sql.=implode(', ', $fields);
