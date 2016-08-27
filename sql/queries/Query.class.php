@@ -689,8 +689,8 @@ class Query extends BaseQuery {
 			/** @var SqlExpr $expr */
 			list($expr, $alias) = $data;
 
-			$this->mergeBinds($expr, 'SELECT');
 			$fields[]=$expr->toSQL().' as '.$alias;
+			$this->mergeBinds($expr, 'SELECT');
 		}
 		$sql.=implode(', ', $fields);
 		return $sql;
