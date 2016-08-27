@@ -392,6 +392,11 @@ abstract class Base extends Identifiable {
 		$this->checkFieldExists($fieldName, TRUE);
 
 		$field = $this->getField($fieldName);
+
+		if (($this->_saltState === self::STATE_LOADING) && ($value === '')) {
+			$value = Field::EMPTY_STRING;
+		}
+
 		$value = $field->transcodeType($value);
 		$field->validate($value);
 
