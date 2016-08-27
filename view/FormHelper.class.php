@@ -237,7 +237,7 @@ class FormHelper {
 	 * @param string $name simple tag/field name
 	 * @return string $name or $name in template if we use withNameContainer()
 	 */
-	private static function getName($name) {
+	public static function getName($name) {
 		if ((self::$nameContainer !== NULL) && ($name !== NULL)) {
 			$name = str_replace('?', $name, self::$nameContainer);
 		}
@@ -252,7 +252,7 @@ class FormHelper {
 	 * @param int $tagType type of tag : self::TAG_*
 	 * @return string HTML tag
 	 */
-	private static function HTMLtag($tagName, $attributes, $content = NULL, $tagType = self::TAG_FULL) {
+	public static function HTMLtag($tagName, $attributes, $content = NULL, $tagType = self::TAG_FULL) {
 		$Input = In::getInstance();
 
 		if ($tagType === self::TAG_CLOSE) {
@@ -285,11 +285,11 @@ class FormHelper {
 
 	/**
 	 * Get value from previously submitted form
-	 * @param string $name name of input
-	 * @return mixed value in GET/POST for this name
+	 * @param string $name name of input (simple name, not the return of self::getName() !)
+	 * @return mixed value in GET/POST for this name, with nameContainer support
 	 * @throws SaltException if called outside a form
 	 */
-	private static function getValue($name) {
+	public static function getValue($name) {
 		if (self::$values !== NULL) {
 			if (array_key_exists($name, self::$values)) {
 				return self::$values[$name];
