@@ -25,10 +25,11 @@ class FormHelper {
 	 */
 	const TAG_CLOSE = 2;
 
-	/**
-	 * Key for store value before formatting
-	 */
+	/** Key for store value before formatting */
 	const PARAM_RAW_VALUE = '_saltRawValue';
+
+	/** Key for adding datepicker JS */
+	const PARAM_DATEPICKER = '_saltDatePicker';
 
 	/** @var string pattern for naming tags. Character '?' is replaced by last tag name */
 	private static $nameContainer = NULL;
@@ -370,6 +371,10 @@ class FormHelper {
 			$value = NULL; // value in parameters have more priority than GET/POST
 		}
 
+		if (($type === 'text') && ($field->type === FieldType::DATE) && (self::$withJQueryUI)) {
+			$others[self::PARAM_DATEPICKER] = TRUE;
+		}
+
 		$options = array();
 		if (($type === 'select') || ($type === 'radio')) {
 			// options construct
@@ -405,17 +410,6 @@ class FormHelper {
 			break;
 			case 'textarea' : $result = self::textarea($name, $value, $classes, $others);
 			break;
-		}
-
-
-		if (($type === 'text') && ($field->type === FieldType::DATE)) {
-			if (self::$withJQueryUI) {
-				$result.='<script type="text/javascript">
-						$(function() {
-							$("input[name='.$name.']").datepicker();
-						});
-						</script>';
-			}
 		}
 
 		return $result;
@@ -526,7 +520,21 @@ class FormHelper {
 			$attrs['value'] = $others['value'];
 		}
 
-		return self::HTMLtag('input', $attrs);
+		$tag = self::HTMLtag('input', $attrs);
+
+		if (isset($others[self::PARAM_DATEPICKER])) {
+			// if we have a nameContainer, we have to escape '[' and ']' in name for find the input a[b][c]
+			// [] in JS have to be double-escaped with \, so, we have to generate : a\\[b\\]\\[c\\]
+			// for each \, we have to write 4 \ in preg_replace (2 for PHP parser, 2 for PCRE parser)
+			// so, total is 8 \
+			$tag.='<script type="text/javascript">
+					$(function() {
+						$("input[name='.preg_replace('#([\[\]])#', '\\\\\\\\$1', $Input->HTML($attrs['name'])).']").datepicker();
+					});
+				</script>';
+		}
+
+		return $tag;
 	}
 
 	/**
