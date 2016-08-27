@@ -53,8 +53,10 @@ class UpdateQuery extends Query {
 			$this->orders = $fromQuery->orders;
 		}
 
-		foreach($obj->getModifiedFields() as $fieldName => $value) {
-			$this->set($fieldName, SqlExpr::value($value));
+		if (!$obj->isReadonly()) {
+			foreach($obj->getModifiedFields() as $fieldName => $value) {
+				$this->set($fieldName, SqlExpr::value($value));
+			}
 		}
 	}
 
@@ -103,11 +105,14 @@ class UpdateQuery extends Query {
 	/**
 	 * Force a SET clause like fieldName = sql expression
 	 * @param string $fieldName fieldName to set
-	 * @param SqlExpr $expr the expression
+	 * @param mixed|SqlExpr $expr the value
 	 */
-	public function set($fieldName, SqlExpr $expr) {
+	public function set($fieldName, $expr) {
 		$field = $this->obj->getField($fieldName);
 
+		if (!($expr instanceof SqlExpr)) {
+			$expr = SqlExpr::value($expr);
+		}
 		$expr->asSetter($field);
 
 		if (isset($this->bindsBySetField[$fieldName])) {
@@ -138,8 +143,6 @@ class UpdateQuery extends Query {
 			return $this->sqlText;
 		}
 
-		$fields = $this->obj->getModifiedFields();
-
 		$sql='UPDATE '.$this->resolveTable();
 		$sql.=$this->joinsToSQL();
 
@@ -149,7 +152,7 @@ class UpdateQuery extends Query {
 		}
 		$sql.=' SET '.implode(', ', $allSets);
 
-		if (!$this->allowMultiple) {
+		if (!$this->allowMultiple && !$this->obj->isReadonly()) {
 			$this->whereAndObject($this->obj);
 		}
 		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {

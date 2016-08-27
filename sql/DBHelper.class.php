@@ -345,7 +345,7 @@ class DBHelper {
 			$expected = $query->getDeletedObjectCount();
 		}
 
-		if ($expected < 0) {
+		if ($expected <= 0) {
 			$expected = NULL;
 		}
 
@@ -370,7 +370,7 @@ class DBHelper {
 			$expected = 1;
 		}
 
-		if ($expected < 0) {
+		if ($expected <= 0) {
 			$expected = NULL;
 		}
 

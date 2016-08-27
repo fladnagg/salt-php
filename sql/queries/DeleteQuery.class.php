@@ -30,6 +30,8 @@ class DeleteQuery extends UpdateQuery {
 
 		parent::__construct($obj);
 
+		$notReadonlyObjects = array();
+
 		$class = get_class($obj);
 		/**
 		 * @var Base $o */
@@ -38,9 +40,12 @@ class DeleteQuery extends UpdateQuery {
 			if ($cl !== $class) {
 				throw new SaltException('Cannot delete differents objects type at the same time. The first object is a ['.$class.']. Found another object in list of type ['.$cl.']');
 			}
+			if (!$o->isReadonly()) {
+				$notReadonlyObjects[] = $o;
+			}
 		}
 
-		$this->objects = $objects;
+		$this->objects = $notReadonlyObjects;
 
 		$this->noAlias = TRUE;
 	}
@@ -70,13 +75,12 @@ class DeleteQuery extends UpdateQuery {
 		if (!$this->allowMultiple) {
 			$deletedObjects = array();
 			foreach($this->objects as $obj) {
-				if (!$obj->isReadonly()) {
-					$obj->delete();
-					$deletedObjects[] = $obj;
-				}
+				$obj->delete();
+				$deletedObjects[] = $obj;
 			}
-
-			$this->whereAndObject($deletedObjects);
+			if (count($deletedObjects) > 0) {
+				$this->whereAndObject($deletedObjects);
+			}
 		}
 		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {
 			throw new SaltException('You don\'t have a WHERE clause on DELETE. Please call allowEmptyWhere() if you really want to do this');
