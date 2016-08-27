@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * UpdateQuery class
  *
@@ -17,7 +17,7 @@ class UpdateQuery extends Query {
 	private $sets = array();
 	/**
 	 * @var mixed[] list of fieldName => array of binds.
-	 * @content Register all binds used for each field. If a field is changed twice, previous binds are canceled 
+	 * @content Register all binds used for each field. If a field is changed twice, previous binds are canceled
 	 */
 	private $bindsBySetField = array();
 
@@ -37,7 +37,7 @@ class UpdateQuery extends Query {
 
 	/**
 	 * Create a new UPDATE query
-	 * 
+	 *
 	 * If $obj parameter was retrieve by a SELECT query, you can reuse this query in $fromQuery for update the same object.
 	 * @param Base $obj the object to update
 	 * @param Query $fromQuery NULL or a query for initializing WHERE, JOINS and ORDER clauses.
@@ -59,8 +59,8 @@ class UpdateQuery extends Query {
 	}
 
 	/**
-	 * Allow the query to have an "open" WHERE clause, without the clause on object id added automatically 
-	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again multiple update after an allow 
+	 * Allow the query to have an "open" WHERE clause, without the clause on object id added automatically
+	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again multiple update after an allow
 	 */
 	public function allowMultipleUpdate($value = TRUE) {
 		$this->allowMultiple = $value;
@@ -85,7 +85,7 @@ class UpdateQuery extends Query {
 	/**
 	 * Force a SET clause like fieldName = fieldName + X
 	 * @param string $fieldName fieldName to increment
-	 * @param number $value default 1
+	 * @param int $value default 1
 	 */
 	public function increment($fieldName, $value = 1) {
 		$this->set($fieldName, SqlExpr::field($this->alias, $this->obj->getField($fieldName))->plus($value));
@@ -94,7 +94,7 @@ class UpdateQuery extends Query {
 	/**
 	 * Force a SET clause like fieldName = fieldName - X
 	 * @param string $fieldName fieldName to decrement
-	 * @param number $value default 1
+	 * @param int $value default 1
 	 */
 	public function decrement($fieldName, $value = 1) {
 		$this->set($fieldName, SqlExpr::field($this->alias, $this->obj->getField($fieldName))->plus(- $value));
@@ -153,7 +153,7 @@ class UpdateQuery extends Query {
 			$this->whereAndObject($this->obj);
 		}
 		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {
-			throw new Exception('You don\'t have a WHERE clause on UPDATE. Please call allowEmptyWhere() if you really want to do this');
+			throw new SaltException('You don\'t have a WHERE clause on UPDATE. Please call allowEmptyWhere() if you really want to do this');
 		}
 		$sql.=$this->wheresToSQL();
 		$sql.=$this->orderToSQL();

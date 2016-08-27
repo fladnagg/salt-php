@@ -202,11 +202,11 @@ class In {
 	* @param string $message Exception message
 	* @param int $type code, see self::EX_*
 	* @param boolean $force (optional, FALSE) TRUE if we have to throw an internal exception and ignore configuration
-	* @throws Exception self::EX_*
+	* @throws \Exception self::EX_*
 	*/
 	private static function throwException($message, $type, $force = FALSE) {
 		if (self::haveToThrowException() || $force) {
-			throw new Exception($message, $type);
+			throw new \Exception($message, $type);
 		}
 	}
 
@@ -266,7 +266,7 @@ class In {
 	 *
 	 * @param string $var Property name to set
 	 * @param mixed $value value
-	 * @throws Exception self::EX_BAD_SETTER
+	 * @throws \Exception self::EX_BAD_SETTER
 	 */
 	public function __set($var, $value) {
 		//echo 'SET '.(is_scalar($var)?$var:gettype($var)).' TO '.(is_scalar($value)?$value:gettype($value)).'<br/>';
@@ -291,7 +291,7 @@ class In {
 	 *
 	 * @param string $var Property name
 	 * @return mixed value
-	 * @throws Exception static::EX_UNDEFINED_VARIABLE if property don't exists, or NULL if exceptions disabled
+	 * @throws \Exception static::EX_UNDEFINED_VARIABLE if property don't exists, or NULL if exceptions disabled
 	 */
 	public function __get($var) {
 		//echo 'GET '.(is_scalar($var)?$var:gettype($var)).'<br/>';
@@ -330,7 +330,7 @@ class In {
 	 *
 	 * @param string $format the method/format
 	 * @param mixed[] $args
-	 * @throws Exception static::EX_UNDEFINED_FORMAT
+	 * @throws \Exception static::EX_UNDEFINED_FORMAT
 	 */
 	public function __call($format, $args) {
 		static::throwException("The format [$format] is undefined.", static::EX_UNDEFINED_FORMAT, TRUE);
@@ -512,7 +512,7 @@ function runTests($pTests) {
 					echo ' : KO : Exception '.htmlspecialchars($aTest[1]).' expected';
 					$nbKO++;
 				}
-			} catch (Exception $ex) {
+			} catch (\Exception $ex) {
 				if ($isExceptionExpected) {
 					if (assert($ex->getCode() === $aTest[1])) {
 						echo ' : OK';

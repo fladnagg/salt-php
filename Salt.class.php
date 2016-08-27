@@ -187,7 +187,7 @@ class Salt {
 	 * @param string $from Origin path
 	 * @param string $dest Destination path
 	 * @param int $destIgnoreLevel (Optional, 0) Ignore some folders at the end of the destination path
-	 * @throws \Exception If the origin and destination paths are not both relative or absolute path
+	 * @throws SaltException If the origin and destination paths are not both relative or absolute path
 	 * @return string Relative path for go to $dest from $from. Return always ends with /
 	 */
 	public static function computeRelativePath($from, $dest, $destIgnoreLevel = 0) {
@@ -204,7 +204,7 @@ class Salt {
 
 		if ((count($from) > 0) && (count($dest) > 0)) {
 			if (($from[0] === '') ^ ($dest[0] === '')) { // xor ^^ // smiley ;o)
-				throw new \Exception('Cannot compute relative path from a relative and an absolute path. Please provide two absolute or relative paths.');
+				throw new SaltException('Cannot compute relative path from a relative and an absolute path. Please provide two absolute or relative paths.');
 			}
 		}
 

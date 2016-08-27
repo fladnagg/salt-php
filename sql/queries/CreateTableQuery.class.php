@@ -30,7 +30,7 @@ class CreateTableQuery extends Query {
 	public function toSQL(Pagination $pagination = NULL) {
 		$fields = array();
 		/**
-		 * @var $field Field */
+		 * @var Field $field */
 		foreach($this->obj->getFieldsMetadata() as $field) {
 			$f=$field->name;
 			$f.=' '.self::getSqlTypeForField($field);

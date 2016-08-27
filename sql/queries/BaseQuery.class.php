@@ -17,7 +17,7 @@ abstract class BaseQuery extends SqlBindField {
 	protected $obj;
 
 	/**
-	 * @var binds by source (SELECT, WHERE, GROUPBY, LIMIT, etc...)
+	 * @var string[][] binds by source (SELECT, WHERE, GROUPBY, LIMIT, etc...)
 	 * @content array of source => array(binds)
 	 */
 	protected $bindsSource = array();
@@ -142,7 +142,7 @@ abstract class BaseQuery extends SqlBindField {
 		$bind = NULL;
 		if (isset($this->bindsSource[$source])) {
 			if (count($this->bindsSource[$source]) > 1) {
-				throw new \Exception('Cannot replace multiple binds source');
+				throw new SaltException('Cannot replace multiple binds source');
 			}
 			$bind = first($this->bindsSource[$source]);
 			$this->binds[$bind]['value'] = $value;

@@ -45,7 +45,7 @@ class InsertQuery extends BaseQuery {
 		$this->fields = array_keys($obj->getModifiedFields());
 
 		/**
-		 * @var $o Base */
+		 * @var Base $o */
 		foreach($objects as $o) {
 			$cl = get_class($o);
 			if ($cl !== $class) {
@@ -97,7 +97,7 @@ class InsertQuery extends BaseQuery {
 
 		$allValues = array();
 		/**
-		 * @var $obj Base */
+		 * @var Base $obj */
 		foreach($this->sets as $sets) {
 			$values = array();
 			foreach($this->fields as $f) {

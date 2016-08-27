@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * DeleteQuery class
  *
@@ -8,7 +8,7 @@
 namespace salt;
 
 /**
- * Query for DELETE 
+ * Query for DELETE
  */
 class DeleteQuery extends UpdateQuery {
 
@@ -32,7 +32,7 @@ class DeleteQuery extends UpdateQuery {
 
 		$class = get_class($obj);
 		/**
-		 * @var $o Base */
+		 * @var Base $o */
 		foreach($objects as $o) {
 			$cl = get_class($o);
 			if ($cl !== $class) {
@@ -79,7 +79,7 @@ class DeleteQuery extends UpdateQuery {
 			$this->whereAndObject($deletedObjects);
 		}
 		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {
-			throw new Exception('You don\'t have a WHERE clause on DELETE. Please call allowEmptyWhere() if you really want to do this');
+			throw new SaltException('You don\'t have a WHERE clause on DELETE. Please call allowEmptyWhere() if you really want to do this');
 		}
 
 		$sql.=$this->wheresToSQL();

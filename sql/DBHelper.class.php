@@ -17,7 +17,7 @@ use \PDOException;
 class DBHelper {
 
 	/**
-	 * @var PDO instance of DB connexion
+	 * @var \PDO instance of DB connexion
 	 */
 	private $base = NULL;
 
@@ -46,7 +46,7 @@ class DBHelper {
 
 	/**
 	 * Create a new DBHelper
-	 * @param PDO $pdo the PDO instance to use in this DBHelper instance
+	 * @param \PDO $pdo the PDO instance to use in this DBHelper instance
 	 */
 	private function __construct(PDO $pdo) {
 		$this->base = $pdo;
@@ -71,11 +71,11 @@ class DBHelper {
 	 * @param string $user user name
 	 * @param string $pass password of user
 	 * @param string $charset charset of database
-	 * @throws Exception if database already defined
+	 * @throws SaltException if database already defined
 	 */
 	public static function registerDefault($name, $host, $port, $db, $user, $pass, $charset = CHARSET) {
 		if (self::$default !== NULL) {
-			throw new Exception('Default DB already defined');
+			throw new SaltException('Default DB already defined');
 		}
 		self::$default = $name;
 		self::register($name, $host, $port, $db, $user, $pass, $charset);
@@ -90,7 +90,6 @@ class DBHelper {
 	 * @param string $user user name
 	 * @param string $pass password of user
 	 * @param string $charset charset of database
-	 * @throws Exception if database already defined
 	 */
 	public static function register($name, $host, $port, $db, $user, $pass, $charset = CHARSET) {
 		self::$allDatas[$name] = new DBConnexion($host, $port, $db, $user, $pass, $charset);
@@ -111,8 +110,7 @@ class DBHelper {
 	 * Retrieve an instance of DBHelper
 	 * @param string $type id of a previously registered database, or NULL for default registered database
 	 * @return DBHelper the database resource
-	 * @throws Exception if $type is unknown
-	 * @throws SaltException if connexion failed
+	 * @throws SaltException if $type is unknown or connexion failed
 	 */
 	public static function getInstance($type = NULL) {
 		if ($type === NULL)  {
@@ -121,7 +119,7 @@ class DBHelper {
 		if (!isset(self::$allInstances[$type])) {
 			$helper = null;
 			if (!isset(self::$allDatas[$type])) {
-				throw new Exception('Unknown database '.$type.'. Please register it before using.');
+				throw new SaltException('Unknown database '.$type.'. Please register it before using.');
 			}
 			try {
 				$helper = new DBHelper(self::$allDatas[$type]->connect());
@@ -168,10 +166,10 @@ class DBHelper {
 			$fields = $query->getSelectFields();
 			try {
 				$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $query->getBindingClass(), array($fields));
-			} catch (PDOException $ex) {
+			} catch (\PDOException $ex) {
 				throw new DBException('Error in populate object during fetch from the query ', $query->toSQL($pagination), $ex);
-			} catch (Exception $ex) {
-				throw new Exception('Error in populate object during fetch from the query '.$query->toSQL($pagination), $ex->getCode(), $ex);
+			} catch (\Exception $ex) {
+				throw new SaltException('Error in populate object during fetch from the query '.$query->toSQL($pagination), $ex->getCode(), $ex);
 			}
 
 			foreach($r->data as $object) {
@@ -189,7 +187,7 @@ class DBHelper {
 	 * @param Pagination $pagination pagination if required
 	 * @return \PDOStatement the PDOStatement after execution
 	 * @throws DBException if prepare or execute query failed with a PDOException
-	 * @throws Exception if something else failed
+	 * @throws SaltException if something else failed
 	 */
 	private function exec(BaseQuery $query, $count = false, Pagination $pagination = NULL) {
 		Benchmark::increment('salt.queries');
@@ -223,11 +221,11 @@ class DBHelper {
 			$time = Benchmark::end('salt.prepare');
 			Benchmark::addTime('salt.queries-prepare', $time);
 
-		} catch (PDOException $ex) {
+		} catch (\PDOException $ex) {
 			throw new DBException($ex->getMessage(), $sql, $ex);
 
-		} catch (Exception $ex) {
-			throw $ex;
+		} catch (\Exception $ex) {
+			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 
 		try {
@@ -242,9 +240,9 @@ class DBHelper {
 			$this->addDebugData($sql, $query->getBinds(), NULL);
 			throw new DBException($ex->getMessage(), $sql, $ex);
 
-		} catch (Exception $ex) {
+		} catch (\Exception $ex) {
 			$this->addDebugData($sql, $query->getBinds(), NULL);
-			throw $ex;
+			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 
 		return $st;
@@ -284,9 +282,9 @@ class DBHelper {
 		} catch (PDOException $ex) {
 			//$this->addDebugData($sql, array(), NULL);
 			throw new DBException($ex->getMessage(), $sql, $ex);
-		} catch (Exception $ex) {
+		} catch (\Exception $ex) {
 			//$this->addDebugData($sql, array(), NULL);
-			throw $ex;
+			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 
 		return $st;
@@ -363,7 +361,7 @@ class DBHelper {
 	 * Execute an UPDATE query
 	 * @param UpdateQuery $query
 	 * @param int $expected number of expected modified rows. NULL if unknown
-	 * @return number of modified rows.
+	 * @return int number of modified rows.
 	 */
 	public function execUpdate(UpdateQuery $query, $expected = -1) {
 		$st = $this->exec($query);
@@ -387,24 +385,24 @@ class DBHelper {
 	/**
 	 * Execute a CREATE TABLE query
 	 * @param CreateTableQuery $query the CreateTable query
-	 * @throws Exception if called during a transaction
+	 * @throws SaltException if called during a transaction
 	 */
 	public function execCreate(CreateTableQuery $query) {
 		if ($this->txLevel > 0) {
-			throw new Exception('Cannot create a table during a transaction.');
+			throw new SaltException('Cannot create a table during a transaction.');
 		}
 		$this->exec($query);
 	}
 
 	/**
 	 * Start a transaction with PDO
-	 * @throws Exception if PDO->beginTransaction() failed
+	 * @throws SaltException if PDO->beginTransaction() failed
 	 */
 	public function beginTransaction() {
 		if ($this->txLevel === 0) {
 			$this->txRollback = false;
 			if ($this->base->beginTransaction() === FALSE) {
-				throw new Exception('Cannot begin a new Transaction.');
+				throw new SaltException('Cannot begin a new Transaction.');
 			}
 		}
 		$this->txLevel++;
@@ -508,7 +506,7 @@ class DBConnexion {
 	 * Connect to a database
 	 * @param string $password the password to use for connect (NULL for using the registered password)
 	 * @return \PDO PDO instance
-	 * @throws Exception if connexion failed
+	 * @throws SaltException if connexion failed
 	 */
 	public function connect($password = NULL) {
 		Benchmark::increment('salt.bdConnect');
@@ -526,9 +524,9 @@ class DBConnexion {
 			$pdo = new PDO('mysql:host='.$this->host.';port='.$this->port.';dbname='.$this->db.';charset='.str_replace('-', '', $this->charset), // UTF8 instead of 'UTF-8'
 					$this->user, $password);
 			$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-		} catch (Exception $ex) {
+		} catch (\Exception $ex) {
 			error_reporting($oldErrorReporting);
-			throw $ex;
+			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 		error_reporting($oldErrorReporting);
 
@@ -547,7 +545,7 @@ class DBConnexion {
 	public function checkConnect($password) {
 		try {
 			$this->connect($password);
-		} catch (Exception $ex) {
+		} catch (\Exception $ex) {
 			return FALSE;
 		}
 		return TRUE;

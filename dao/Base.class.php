@@ -207,7 +207,7 @@ abstract class Base extends Identifiable {
 	 * Initialize the class by calling metadata() (once by class) and setting default values (once by instance) if needed
 	 * @param string[] $loadedFields fields loaded by a query for this object
 	 * @param string[] $extraFields fields to add to new instance only
-	 * @throws Exception if metadata() function don't return an array of Field
+	 * @throws SaltException if metadata() function don't return an array of Field
 	 */
 	private function initMetadata(array $loadedFields = NULL, array $extraFields = NULL) {
 		$child = get_called_class();
@@ -215,7 +215,7 @@ abstract class Base extends Identifiable {
 		if (!isset(self::$_saltMetadata[$child])) {
 			$meta = $this->metadata();
 			if (!is_array($meta) || (count($meta) == 0) || !(first($meta) instanceof Field)) {
-				throw new Exception($child.'.metadata() have to return a Field array');
+				throw new SaltException($child.'.metadata() have to return a Field array');
 			}
 			foreach($meta as $field) {
 				self::$_saltMetadata[$child]['fields'][$field->name] = $field;
@@ -257,7 +257,7 @@ abstract class Base extends Identifiable {
 	/**
 	 * Retrieve a Field by field name
 	 * @param string $fieldName field name registered with metadata() or extra field constructor parameter
-	 * @param boolean $createIfNotExists if TRUE, create extra field if not exists, throw Exception otherwise
+	 * @param boolean $createIfNotExists if TRUE, create extra field if not exists, throw SaltException otherwise
 	 * @return Field */
 	public function getField($fieldName, $createIfNotExists = FALSE) {
 		if (!$this->checkFieldExists($fieldName, FALSE, $createIfNotExists)) {
@@ -278,7 +278,7 @@ abstract class Base extends Identifiable {
 	 * @param boolean $forValue also check field is loaded and value can be retrieve
 	 * @param boolean $doNotThrowException return FALSE if field does not exists instead of throwing exception
 	 * @return boolean TRUE if field exists
-	 * @throws Exception if field don't exists or is not loaded (if $forValue)
+	 * @throws SaltException if field don't exists or is not loaded (if $forValue)
 	 */
 	private function checkFieldExists($fieldName, $forValue = FALSE, $doNotThrowException = FALSE) {
 		$this->initMetadata();
@@ -293,14 +293,14 @@ abstract class Base extends Identifiable {
 			if ($doNotThrowException) {
 				return FALSE;
 			}
-			throw new Exception('Unknown field ['.$fieldName.'] for class ['.get_class($this).']');
+			throw new SaltException('Unknown field ['.$fieldName.'] for class ['.get_class($this).']');
 		}
 		// value can be null : array_key_exists instead of isset
 		if ($forValue && !array_key_exists($fieldName, $this->_saltLoadValues)) {
 			if ($doNotThrowException) {
 				return FALSE;
 			}
-			throw new Exception('Unloaded field ['.$fieldName.'] for class ['.get_class($this).']');
+			throw new SaltException('Unloaded field ['.$fieldName.'] for class ['.get_class($this).']');
 		}
 		return TRUE;
 	}
@@ -341,14 +341,14 @@ abstract class Base extends Identifiable {
 	/**
 	 * Check object state is in allowed states
 	 * @param int|int[] $state expected states for the object
-	 * @throws Exception if the object is not in one of the expected states
+	 * @throws SaltException if the object is not in one of the expected states
 	 */
 	public function checkState($state) {
 		if (!is_array($state)) {
 			$state = array($state);
 		}
 		if (!in_array($this->_saltState, $state, TRUE)) {
-			throw new Exception('Unexpected business object state '.$this->_saltState.' instead of expected '.implode(' or ',$state));
+			throw new SaltException('Unexpected business object state '.$this->_saltState.' instead of expected '.implode(' or ',$state));
 		}
 	}
 
@@ -356,7 +356,7 @@ abstract class Base extends Identifiable {
 	 * Check object state is not in forbidden states
 	 * @param int|int[] $state forbidden states for the object
 	 * @param string $message error message for exception
-	 * @throws Exception if the object is in one of the forbidden states
+	 * @throws SaltException if the object is in one of the forbidden states
 	 */
 	public function checkNotState($state, $message = NULL) {
 		if (!is_array($state)) {
@@ -366,7 +366,7 @@ abstract class Base extends Identifiable {
 			if ($message === NULL) {
 				$message = 'Unexpected business object state '.$this->_saltState;
 			}
-			throw new Exception($message);
+			throw new SaltException($message);
 		}
 	}
 

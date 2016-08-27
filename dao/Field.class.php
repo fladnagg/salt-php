@@ -211,7 +211,7 @@ class Field {
 	/**
 	 * Check the value is valid for this field.
 	 * @param mixed $value
-	 * @throws Exception if $value is not valid.
+	 * @throws SaltException if $value is not valid.
 	 */
 	public function validate($value) {
 
@@ -221,24 +221,24 @@ class Field {
 			}
 		} else {
 			if ($value === NULL) {
-				throw new Exception('NULL value is not allowed for the field ['.$this->name.'].');
+				throw new SaltException('NULL value is not allowed for the field ['.$this->name.'].');
 			}
 		}
-		
+
 		if ((count($this->values) > 0) && !isset($this->values[$value])) {
-			throw new Exception('Value ['.$value.'] is not allowed for the field ['.$this->name.']. Expected values : '.implode(', ', array_keys($this->values)));
+			throw new SaltException('Value ['.$value.'] is not allowed for the field ['.$this->name.']. Expected values : '.implode(', ', array_keys($this->values)));
 		}
-		
-		
+
+
 		switch($this->type) {
 			case FieldType::NUMBER :
 				if (!is_numeric($value)) {
-					throw new Exception('Value ['.$value.'] does not match field type (number)');
+					throw new SaltException('Value ['.$value.'] does not match field type (number)');
 				}
 			break;
 			case FieldType::BOOLEAN :
 				if (!is_bool($value)) {
-					throw new Exception('Value ['.$value.'] does not match field type (boolean)');
+					throw new SaltException('Value ['.$value.'] does not match field type (boolean)');
 				}
 			break;
 			case FieldType::DATE :
@@ -247,17 +247,17 @@ class Field {
 					if ($date->getTimestamp() === $value) {
 						break;
 					}
-				} catch(Exception $ex) {
+				} catch(\Exception $ex) {
 					// do nothing
 				}
-				throw new Exception('Value ['.$value.'] does not match field type (timestamp date)');
+				throw new SaltException('Value ['.$value.'] does not match field type (timestamp date)');
 			break;
 		}
 	}
 
 	/**
 	 * Convert a value from external source (input form) for store in object.
-	 * 
+	 *
 	 * A value for a boolean field is converted to boolean. A value for a date field is converted to timestamp.
 	 * @param mixed $value
 	 * @param string $format date format

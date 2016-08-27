@@ -157,7 +157,7 @@ class SqlExpr extends SqlBindField {
 	 * Set the SqlExpr type to DATE
 	 * @param string $format format of the source, used for convert to date.
 	 * @return SqlExpr current object
-	 * @throws Exception
+	 * @throws SaltException
 	 */
 	public function asDate($format = NULL) {
 		$this->timestamp = FALSE;
@@ -166,7 +166,7 @@ class SqlExpr extends SqlBindField {
 			$this->dateFormat = $format;
 		}
 		if ($this->dateFormat === NULL) {
-			throw new Exception('You have to set a format for a date expression');
+			throw new SaltException('You have to set a format for a date expression');
 		}
 		return $this;
 	}
@@ -175,7 +175,7 @@ class SqlExpr extends SqlBindField {
 	 * Set the SqlExpr type to DATE, as TIMESTAMP format
 	 * @param string $format format of the source, used for convert to date.
 	 * @return SqlExpr current object
-	 * @throws Exception
+	 * @throws SaltException
 	 */
 	public function asTimestamp($format = NULL) {
 		$this->timestamp = TRUE;
@@ -184,7 +184,7 @@ class SqlExpr extends SqlBindField {
 			$this->dateFormat = $format;
 		}
 		if ($this->dateFormat === NULL) {
-			throw new Exception('You have to set a format for a timestamp expression');
+			throw new SaltException('You have to set a format for a timestamp expression');
 		}
 		return $this;
 	}
@@ -479,7 +479,7 @@ class SqlExpr extends SqlBindField {
 				$this->binds = array_merge($this->binds, $arg->getBinds());
 			}
 			if (count($template)-1 !== count($params)) {
-				throw new Exception('Template '.implode(self::TEMPLATE_PARAM, $template).' contains '.(count($template)-1).
+				throw new SaltException('Template '.implode(self::TEMPLATE_PARAM, $template).' contains '.(count($template)-1).
 														' placeholders but with '.(count($params)).' values');
 			}
 			$sql = array_shift($template);

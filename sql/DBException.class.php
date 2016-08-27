@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * DBException class
  *
@@ -13,7 +13,7 @@ namespace salt;
 class DBException extends SaltException {
 
 	/**
-	 * @var string SQLSTATE exception code returned by \PDOException if table does not exists 
+	 * @var string SQLSTATE exception code returned by \PDOException if table does not exists
 	 */
 	const TABLE_DOES_NOT_EXISTS = '42S02';
 
@@ -29,7 +29,7 @@ class DBException extends SaltException {
 	 * Create a new DBException
 	 * @param string $message Exception message
 	 * @param string $query the SQL query
-	 * @param PDOException $previous previous exception
+	 * @param \PDOException $previous previous exception
 	 */
 	public function __construct($message, $query, \PDOException $previous = NULL) {
 		parent::__construct($message, NULL, $previous);

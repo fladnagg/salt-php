@@ -130,10 +130,10 @@ class Query extends BaseQuery {
 			$sqlExpr = $field;
 			$field = $sqlExpr->getFieldName();
 			if ($field === NULL) {
-				throw new Exception('Only SqlExpr of type Field can be used here');
+				throw new SaltException('Only SqlExpr of type Field can be used here');
 			}
 		} else if (!is_string($field)) {
-			throw new Exception('A field name is expected');
+			throw new SaltException('A field name is expected');
 		} else {
 			$sqlExpr = $this->getField($field);
 		}
@@ -149,14 +149,14 @@ class Query extends BaseQuery {
 	 * Add a SqlExpr in the SELECT clause
 	 * @param SqlExpr $expr expression to add in select clause, of any type
 	 * @param string $as alias for the expression
-	 * @throws Exception
+	 * @throws SaltException
 	 */
 	public function select(SqlExpr $expr, $as = NULL) {
 
 		$aliases = $expr->getAllUsedTableAlias();
 		foreach($aliases as $a) {
 			if (($this->alias !== $a) && !isset($this->joins[$a])) {
-				throw new Exception('No query with alias ['.$a.'] in join clauses. We cannot add the field '.$expr->toSQL().' in select clause');
+				throw new SaltException('No query with alias ['.$a.'] in join clauses. We cannot add the field '.$expr->toSQL().' in select clause');
 			}
 		}
 
@@ -165,7 +165,7 @@ class Query extends BaseQuery {
 		}
 
 		if ($as === NULL) {
-			throw new Exception('Please provide an alias for field '.$expr->toSQL());
+			throw new SaltException('Please provide an alias for field '.$expr->toSQL());
 		}
 
 		$this->fields[]=array($expr, $as);
@@ -251,7 +251,7 @@ class Query extends BaseQuery {
 		$allIds = array();
 		foreach($objects as $obj) {
 			if (!$obj instanceof $class) {
-				throw new Exception('Cannot use an object of type '.get_class($obj).' in a query on '.$class.' objects');
+				throw new SaltException('Cannot use an object of type '.get_class($obj).' in a query on '.$class.' objects');
 			}
 			$allIds[] = $obj->$idField;
 		}
@@ -290,7 +290,7 @@ class Query extends BaseQuery {
 			$this->binds=array_merge($this->binds, $subQuery->getBindsBySource('WHERE'));
 			//$this->binds=array_merge($this->binds, $subQuery->getBinds());
 		} else {
-			throw new Exception('Cannot use a subquery on a different table of the main query');
+			throw new SaltException('Cannot use a subquery on a different table of the main query');
 		}
 	}
 
@@ -391,7 +391,7 @@ class Query extends BaseQuery {
 	 * @param string $operator operator of ON clause
 	 * @param mixed|SqlExpr $valueOrExpr value of ON clause
 	 * @param string $type type of join: 'INNER', 'OUTER', etc...
-	 * @throws Exception if this join already exists
+	 * @throws SaltException if this join already exists
 	 */
 	public function joinSelect(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER') {
 		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, '( '.$other->toSQL().' )', FALSE);
@@ -404,7 +404,7 @@ class Query extends BaseQuery {
 	 * @param string $operator operator of ON clause
 	 * @param mixed|SqlExpr $valueOrExpr value of ON clause
 	 * @param string $type type of join: 'INNER', 'OUTER', etc...
-	 * @throws Exception if this join already exists
+	 * @throws SaltException if this join already exists
 	 */
 	public function join(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER') {
 		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, $other->obj->getTableName());
@@ -419,11 +419,11 @@ class Query extends BaseQuery {
 	 * @param string $type type of join: 'INNER', 'OUTER', etc...
 	 * @param string $table object to join with : table name of subquery
 	 * @param boolean $withOtherDatas TRUE if we have to add fields, where, group by, order clause to main query
-	 * @throws Exception if this join already exists
+	 * @throws SaltException if this join already exists
 	 */
 	private function addJoin(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER', $table, $withOtherDatas=TRUE) {
 		if (isset($this->joins[$other->alias])) {
-			throw new Exception('A join with the same alias ['.$other->alias.'] already exists.');
+			throw new SaltException('A join with the same alias ['.$other->alias.'] already exists.');
 		}
 
 		$join=array(
@@ -472,7 +472,7 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr field of ON clause
 	 * @param string $operator operator of ON clause
 	 * @param mixed|SqlExpr $valueOrExpr value of ON clause
-	 * @throws Exception if join don't exists
+	 * @throws SaltException if join don't exists
 	 */
 	public function joinOnAnd(Query $other, $fieldOrExpr, $operator, $valueOrExpr) {
 		$this->addJoinOn('AND', $other, $fieldOrExpr, $operator, $valueOrExpr);
@@ -484,7 +484,7 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr field of ON clause
 	 * @param string $operator operator of ON clause
 	 * @param mixed|SqlExpr $valueOrExpr value of ON clause
-	 * @throws Exception if join don't exists
+	 * @throws SaltException if join don't exists
 	 */
 	public function joinOnOr(Query $other, $fieldOrExpr, $operator, $valueOrExpr) {
 		$this->addJoinOn('OR', $other, $fieldOrExpr, $operator, $valueOrExpr);
@@ -526,11 +526,11 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr field of ON clause
 	 * @param string $operator operator of ON clause
 	 * @param mixed|SqlExpr $valueOrExpr value of ON clause
-	 * @throws Exception if join don't exists
+	 * @throws SaltException if join don't exists
 	 */
 	private function addJoinOn($type, Query $other, $fieldOrExpr, $operator, $valueOrExpr) {
 		if (!array_key_exists($other->alias, $this->joins)) {
-			throw new Exception('No join found for alias '.$other->alias.'.');
+			throw new SaltException('No join found for alias '.$other->alias.'.');
 		}
 
 		$absoluteField = $this->resolveFieldName('JOIN', $fieldOrExpr);
