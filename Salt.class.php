@@ -40,7 +40,7 @@ class Salt {
 	 * @return string Relative path between executed PHP script and method caller
 	 */
 	public static function relativePath($destIgnoreLevel = 0) {
-		$caller = first(debug_backtrace());
+		$caller = self::firstCallerFile();
 
 		return self::computeRelativePath($_SERVER['SCRIPT_FILENAME'], $caller['file'], $destIgnoreLevel);
 	}
@@ -52,18 +52,31 @@ class Salt {
 	 */
 	public static function webRelativePath($destIgnoreLevel = 0) {
 
-		$request = implode('/', explode('/',$_SERVER['REQUEST_URI'], -1));
-		$exec = implode('/', explode('/', $_SERVER['SCRIPT_NAME'], -1));
+		// retrieve web root path
+		$relative = self::relativePath($destIgnoreLevel);
+		$root = self::computePath($_SERVER['SCRIPT_NAME'], $relative);
 
-		$caller = first(debug_backtrace());
+		// compute relative path between requested URI and web root
+		$rel = self::computeRelativePath($_SERVER['REQUEST_URI'], $root);
 
-		$root = self::computeRelativePath($_SERVER['SCRIPT_FILENAME'], $caller['file'], $destIgnoreLevel);
+		return $rel;
+	}
 
-		if ($request === $exec) { // no redirection
-			return $root;
+	/**
+	 * Return caller file
+	 * @param int $ignoreCallers number of first callers to ignore
+	 * @return string[] associative array of a backtrace with keys : file, line
+	 * @see \debug_backtrace()
+	 */
+	private static function firstCallerFile($ignoreCallers = 0) {
+		$data = debug_backtrace();
+		$data = array_slice($data, $ignoreCallers);
+		foreach($data as $row) {
+			if (isset($row['file']) && $row['file'] !== __FILE__) {
+				return $row;
+			}
 		}
-
-		return self::computeRelativePath($_SERVER['REQUEST_URI'], $_SERVER['SCRIPT_NAME'], substr_count($root, '/'));
+		return NULL;
 	}
 
 	/**
@@ -136,6 +149,36 @@ class Salt {
 	}
 
 	/**
+	 * Compute a folder from a full path and a relative path
+	 * @param string $origin
+	 * @param string $relative
+	 * @return string the resolved path
+	 */
+	public static function computePath($origin, $relative) {
+		$relative = explode('/', $relative);
+
+		$last = substr($origin, -1);
+		if ($last === '/') {
+			$origin = substr($origin, 0, -1);
+		}
+		$origin = explode('/', $origin);
+		foreach($relative as $path) {
+			if (($path === '.') || ($path === '')) {
+				// do nothing
+			} else if ($path === '..') {
+				array_pop($origin);
+			} else {
+				$origin[]=$path;
+			}
+		}
+		$result = implode('/', $origin);
+		if ($last === '/') {
+			$result.='/';
+		}
+		return $result;
+	}
+
+	/**
 	 * Return the relative path between two folders.
 	 *
 	 * Parameters can be provided with a file or ends with / (or \)<br/>
@@ -145,7 +188,7 @@ class Salt {
 	 * @param string $dest Destination path
 	 * @param int $destIgnoreLevel (Optional, 0) Ignore some folders at the end of the destination path
 	 * @throws \Exception If the origin and destination paths are not both relative or absolute path
-	 * @return string Relative path for go to $dest from $from. Return always ends with /, except if empty
+	 * @return string Relative path for go to $dest from $from. Return always ends with /
 	 */
 	public static function computeRelativePath($from, $dest, $destIgnoreLevel = 0) {
 
@@ -178,8 +221,12 @@ class Salt {
 		// down to uncommon
 		$relative.=implode('/', array_slice($dest, $commonPath));
 
+		if (strlen($relative) === 0) {
+			$relative='.';
+		}
+
 		// add last separator
-		if (strlen($relative)>0 && (substr($relative, -1, 1) !== '/')) {
+		if (substr($relative, -1) !== '/') {
 			$relative.='/';
 		}
 		return $relative;
