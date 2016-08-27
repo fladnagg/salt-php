@@ -8,7 +8,6 @@
 namespace salt;
 
 use \DateTime;
-use \Exception;
 
 /**
  * Represent a field of a DAO object / Database column

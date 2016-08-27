@@ -7,8 +7,6 @@
  */
 namespace salt;
 
-use \Exception;
-
 /**
  * Construct a complex SQL expression
  */
@@ -236,7 +234,7 @@ class SqlExpr extends SqlBindField {
 	 * @param SqlExpr|mixed ... $args list of parameters. Parameters that are not SqlExpr are converted with SqlExpr::value()
 	 * @return SqlExpr current object
 	 */
-	public function template($template) {
+	public function template($template, $args = NULL) {
 		$args = func_get_args();
 		array_shift($args);
 		$params = array();
@@ -468,9 +466,7 @@ class SqlExpr extends SqlBindField {
 		// Templates
 		if (count($this->template)>0) {
 			list($template, $args) = $this->template;
-			if (!is_array($args)) {
-				$args = array($args);
-			}
+
 			$template = explode(self::TEMPLATE_PARAM, $template);
 			$params=array();
 			/** @var SqlExpr $arg */
