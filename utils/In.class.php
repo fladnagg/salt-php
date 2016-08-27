@@ -103,25 +103,25 @@ use \Exception;
 class In {
 
 	/** In type : instance retrieved with getInstance() */
-	const INSTANCE_BASE = -1;
+	const _SALT_INSTANCE_BASE = -1;
 	/** In type : instance retrieved with ->TYPE, linked to a superglobal array */
-	const INSTANCE_TYPE = 0;
+	const _SALT_INSTANCE_TYPE = 0;
 	/** In type : instance retrieved with ->TYPE->FORMAT, linked to a superglobal array AND a format */
-	const INSTANCE_FORMAT = 1;
+	const _SALT_INSTANCE_FORMAT = 1;
 
 	/** Exception code for undefined variable */
-	const EX_UNDEFINED_VARIABLE=1;
+	const _SALT_EX_UNDEFINED_VARIABLE=1;
 	/** Exception code for undefined format */
-	const EX_UNDEFINED_FORMAT=2;
+	const _SALT_EX_UNDEFINED_FORMAT=2;
 	/** Exception code for undefined type */
-	const EX_UNDEFINED_TYPE=3;
+	const _SALT_EX_UNDEFINED_TYPE=3;
 	/** Exception code for trying to set a value without SET format */
-	const EX_BAD_SETTER = 4;
+	const _SALT_EX_BAD_SETTER = 4;
 	/** Exception code for trying to access to another instance with a FORMAT parent */
-	const EX_BAD_PARENT = 5;
+	const _SALT_EX_BAD_PARENT = 5;
 
 	/** @var int instance type */
-	private $_saltType = self::INSTANCE_BASE;
+	private $_saltType = self::_SALT_INSTANCE_BASE;
 	/** @var In parent instance */
 	private $_saltParent = NULL;
 	/** @var string format or type name, depends on instance type */
@@ -134,7 +134,7 @@ class In {
 	/** @var boolean TRUE if we have to throw an exception if variable undefined */
 	protected static $_saltThrowException = TRUE;
 	/** @var mixed[][] Type and format registered as TYPE=>array(name => mixed) */
-	protected static $_saltRegistry = array(self::INSTANCE_TYPE => array(), self::INSTANCE_FORMAT => array());
+	protected static $_saltRegistry = array(self::_SALT_INSTANCE_TYPE => array(), self::_SALT_INSTANCE_FORMAT => array());
 	/** @var In[] In singleton list : 1 singleton for each child class as className=>Instance */
 	protected static $_saltInstances = array();
 
@@ -144,8 +144,8 @@ class In {
 	 * New instance of In
 	 *
 	 * If $parent is provided, the return object depends on parent type.<br/>
-	 * If $parent is an INSTANCE_BASE instance, will construct an INSTANCE_TYPE instance<br/>
-	 * If $parent is an INSTANCE_TYPE instance, will construct an INSTANCE_FORMAT instance<br/>
+	 * If $parent is an _SALT_INSTANCE_BASE instance, will construct an _SALT_INSTANCE_TYPE instance<br/>
+	 * If $parent is an _SALT_INSTANCE_TYPE instance, will construct an _SALT_INSTANCE_FORMAT instance<br/>
 	 *
 	 * @param In $parent Parent instance if we are in a delegation chain
 	 * @param string $name Name of type or format
@@ -154,17 +154,17 @@ class In {
 		$this->_saltParent = $parent;
 		if ($parent !== NULL) {
 			switch($parent->_saltType) {
-				case self::INSTANCE_BASE : $this->_saltType = self::INSTANCE_TYPE; break;
-				case self::INSTANCE_TYPE : $this->_saltType = self::INSTANCE_FORMAT; break;
-				case self::INSTANCE_FORMAT :
-					static::throwException('Cannot create an instance from a FORMAT parent', static::EX_BAD_PARENT, TRUE);
+				case self::_SALT_INSTANCE_BASE : $this->_saltType = self::_SALT_INSTANCE_TYPE; break;
+				case self::_SALT_INSTANCE_TYPE : $this->_saltType = self::_SALT_INSTANCE_FORMAT; break;
+				case self::_SALT_INSTANCE_FORMAT :
+					static::throwException('Cannot create an instance from a FORMAT parent', static::_SALT_EX_BAD_PARENT, TRUE);
 				break;
 			}
 			if (!isset(self::$_saltRegistry[$this->_saltType][$name])) {
-				if ($this->_saltType === self::INSTANCE_TYPE) {
-					static::throwException("The type [$name] is not registered.", static::EX_UNDEFINED_TYPE, TRUE);
+				if ($this->_saltType === self::_SALT_INSTANCE_TYPE) {
+					static::throwException("The type [$name] is not registered.", static::_SALT_EX_UNDEFINED_TYPE, TRUE);
 				} else {
-					static::throwException("The format [$name] is not registered.", static::EX_UNDEFINED_FORMAT, TRUE);
+					static::throwException("The format [$name] is not registered.", static::_SALT_EX_UNDEFINED_FORMAT, TRUE);
 				}
 			}
 		}
@@ -172,11 +172,11 @@ class In {
 	}
 
 	/**
-	 * Reset caches for variable on current instance (of type INSTANCE_TYPE)
+	 * Reset caches for variable on current instance (of type _SALT_INSTANCE_TYPE)
 	 * @param string $var Name of variable to remove from caches
 	 */
 	private function invalidCache($var) {
-		foreach(static::$_saltRegistry[self::INSTANCE_FORMAT] as $format => $instance) {
+		foreach(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT] as $format => $instance) {
 			// property_exists required because cache can contain NULL, so isset can return FALSE
 			if (isset($this->$format)) { // && property_exists($this->$format, $var)) {
 				// make an unset on an undefined property is faster than check this existence with property_exists
@@ -200,9 +200,9 @@ class In {
 	/**
 	* Throw an exception
 	* @param string $message Exception message
-	* @param int $type code, see self::EX_*
+	* @param int $type code, see self::_SALT_EX_*
 	* @param boolean $force (optional, FALSE) TRUE if we have to throw an internal exception and ignore configuration
-	* @throws \Exception self::EX_*
+	* @throws \Exception self::_SALT_EX_*
 	*/
 	private static function throwException($message, $type, $force = FALSE) {
 		if (self::haveToThrowException() || $force) {
@@ -243,7 +243,7 @@ class In {
 	 * @param string $source Name of superglobal array, without $ (for example "_GET" for "$_GET")
 	 */
 	protected static function registerType($name, $source) {
-		static::$_saltRegistry[self::INSTANCE_TYPE][$name] = $source;
+		static::$_saltRegistry[self::_SALT_INSTANCE_TYPE][$name] = $source;
 	}
 
 	/**
@@ -252,7 +252,7 @@ class In {
 	 * @param string|string[] $function Function name. If it's a class function, use an array(ClassName,StaticMethodName)
 	 */
 	protected static function registerFormat($name, $function) {
-		static::$_saltRegistry[self::INSTANCE_FORMAT][$name] = $function;
+		static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$name] = $function;
 	}
 
 	/********** PUBLIC FUNCTIONS **********/
@@ -266,21 +266,21 @@ class In {
 	 *
 	 * @param string $var Property name to set
 	 * @param mixed $value value
-	 * @throws \Exception self::EX_BAD_SETTER
+	 * @throws \Exception self::_SALT_EX_BAD_SETTER
 	 */
 	public function __set($var, $value) {
 		//echo 'SET '.(is_scalar($var)?$var:gettype($var)).' TO '.(is_scalar($value)?$value:gettype($value)).'<br/>';
 		if ($this->_saltCacheSetter) {
 			$this->$var = $value;
-		} else if (($this->_saltType === self::INSTANCE_FORMAT) && ($this->_saltName === 'SET')) {
-			$array = static::$_saltRegistry[self::INSTANCE_TYPE][$this->_saltParent->_saltName];
+		} else if (($this->_saltType === self::_SALT_INSTANCE_FORMAT) && ($this->_saltName === 'SET')) {
+			$array = static::$_saltRegistry[self::_SALT_INSTANCE_TYPE][$this->_saltParent->_saltName];
 			global ${$array};
 
 			${$array}[$var] = $value;
 
 			$this->_saltParent->invalidCache($var);
 		} else {
-			static::throwException('Cannot change a value like that. You have to use SET format', self::EX_BAD_SETTER, TRUE);
+			static::throwException('Cannot change a value like that. You have to use SET format', self::_SALT_EX_BAD_SETTER, TRUE);
 		}
 		$this->_saltCacheSetter = FALSE;
 	}
@@ -291,13 +291,13 @@ class In {
 	 *
 	 * @param string $var Property name
 	 * @return mixed value
-	 * @throws \Exception static::EX_UNDEFINED_VARIABLE if property don't exists, or NULL if exceptions disabled
+	 * @throws \Exception static::_SALT_EX_UNDEFINED_VARIABLE if property don't exists, or NULL if exceptions disabled
 	 */
 	public function __get($var) {
 		//echo 'GET '.(is_scalar($var)?$var:gettype($var)).'<br/>';
 		if (!isset($this->$var)) {
-			if ($this->_saltType === self::INSTANCE_FORMAT) {
-				$array = static::$_saltRegistry[self::INSTANCE_TYPE][$this->_saltParent->_saltName];
+			if ($this->_saltType === self::_SALT_INSTANCE_FORMAT) {
+				$array = static::$_saltRegistry[self::_SALT_INSTANCE_TYPE][$this->_saltParent->_saltName];
 				global ${$array};
 
 				$isExists = isset(${$array}[$var]);
@@ -305,16 +305,16 @@ class In {
 					$this->setCache($var, $isExists);
 				} else {
 					if (!$isExists) {
-						static::throwException("The property [$var] is not defined for [".$this->_saltParent->_saltName.']', static::EX_UNDEFINED_VARIABLE);
+						static::throwException("The property [$var] is not defined for [".$this->_saltParent->_saltName.']', static::_SALT_EX_UNDEFINED_VARIABLE);
 						//$this->setCache($var, NULL);
 						// on ne stocke pas en cache une variable inexistante
 						return NULL;
 					} else {
 						$value = ${$array}[$var];
 						if (is_scalar($value)) {
-							$this->setCache($var, forward_static_call(static::$_saltRegistry[self::INSTANCE_FORMAT][$this->_saltName], $value));
+							$this->setCache($var, forward_static_call(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName], $value));
 						} else if (is_array($value)) {
-							$this->setCache($var, array_map(static::$_saltRegistry[self::INSTANCE_FORMAT][$this->_saltName], $value));
+							$this->setCache($var, array_map(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName], $value));
 						}
 					}
 				}
@@ -330,10 +330,10 @@ class In {
 	 *
 	 * @param string $format the method/format
 	 * @param mixed[] $args
-	 * @throws \Exception static::EX_UNDEFINED_FORMAT
+	 * @throws \Exception static::_SALT_EX_UNDEFINED_FORMAT
 	 */
 	public function __call($format, $args) {
-		static::throwException("The format [$format] is undefined.", static::EX_UNDEFINED_FORMAT, TRUE);
+		static::throwException("The format [$format] is undefined.", static::_SALT_EX_UNDEFINED_FORMAT, TRUE);
 	}
 
 	/**
@@ -390,7 +390,7 @@ class In {
 	 * @return string HTML value formatted with htmlentities(), ENT_QUOTES, and charset
 	 */
 	public static function HTML($var) {
-		return htmlentities($var, ENT_QUOTES, self::getCharset());
+		return htmlentities($var, \ENT_QUOTES, self::getCharset());
 	}
 
 	/**
@@ -452,11 +452,11 @@ $Tests=array(
 	'Local var pour HTML' => array('$In->HTML(\''.str_replace("'", "\\'", $a).'\')', 'a&#039;a&quot;a/a\a&lt;b&gt;a&lt;/b&gt;a$a'),
 	'$_GET[non_exist] pour RAW' => array('$In->G->RAW->non_exist', NULL),
 	'salt\In::setThrowException(TRUE);',
-	'$_GET[non_exist] pour RAW avec Exception' => array('$In->G->RAW->non_exist', In::EX_UNDEFINED_VARIABLE),
+	'$_GET[non_exist] pour RAW avec Exception' => array('$In->G->RAW->non_exist', In::_SALT_EX_UNDEFINED_VARIABLE),
 	'Isset FALSE'=>array('$In->G->ISSET->nexistepas', FALSE),
 	'Isset TRUE'=>array('$In->G->ISSET->id', TRUE),
-	'Unknown type with Exception' => array('$In->AA->HTML(1)', In::EX_UNDEFINED_TYPE),
-	'Unknown format with Exception' => array('$In->TRUC(1)', In::EX_UNDEFINED_FORMAT),
+	'Unknown type with Exception' => array('$In->AA->HTML(1)', In::_SALT_EX_UNDEFINED_TYPE),
+	'Unknown format with Exception' => array('$In->TRUC(1)', In::_SALT_EX_UNDEFINED_FORMAT),
 	'class In2 extends salt\In {
 		public function register() {
 			parent::register();

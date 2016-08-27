@@ -14,19 +14,19 @@ use \Exception;
  */
 abstract class Base extends Identifiable {
 	/** State of a not initialized objet */
-	const STATE_NONE=0;
+	const _SALT_STATE_NONE=0;
 	/** State of a new created objet */
-	const STATE_NEW=10;
+	const _SALT_STATE_NEW=10;
 	/** State of an object created by PDO but not populated yet */
-	const STATE_LOADING=21;
+	const _SALT_STATE_LOADING=21;
 	/** State of an object created and populated by PDO fetch */
-	const STATE_LOADED=20;
+	const _SALT_STATE_LOADED=20;
 	/** State of a modified object after being loaded by PDO */
-	const STATE_MODIFIED=30;
+	const _SALT_STATE_MODIFIED=30;
 	/** State of a deleted object */
-	const STATE_DELETED=40;
+	const _SALT_STATE_DELETED=40;
 	/** A special state for objet singleton returned by meta() function. Throw an exception if a setter is called */
-	const STATE_READONLY=50;
+	const _SALT_STATE_READONLY=50;
 
 	/**
 	 * @var mixed[] Metadata of all classes
@@ -54,9 +54,9 @@ abstract class Base extends Identifiable {
 	private $_saltExtraFieldsMetadata=array();
 
 	/**
-	 * @var int Current object state : self::STATE_*
+	 * @var int Current object state : self::_SALT_STATE_*
 	 */
-	private $_saltState = self::STATE_NONE;
+	private $_saltState = self::_SALT_STATE_NONE;
 
 	/**
 	 * @var mixed[] Contains values initially loaded from database or for new object (not in database)
@@ -221,9 +221,9 @@ abstract class Base extends Identifiable {
 				self::$_saltMetadata[$child]['fields'][$field->name] = $field;
 			}
 		}
-		if ($this->_saltState === self::STATE_NONE) {
+		if ($this->_saltState === self::_SALT_STATE_NONE) {
 			if ($loadedFields === NULL) {
-				$this->_saltState = self::STATE_NEW; // for manually created new object, load all default values
+				$this->_saltState = self::_SALT_STATE_NEW; // for manually created new object, load all default values
 				foreach(self::$_saltMetadata[$child]['fields'] as $key => $field) {
 					$this->_saltLoadValues[$key]=$field->defaultValue;
 					if ($field->defaultValue !== NULL) {
@@ -240,7 +240,7 @@ abstract class Base extends Identifiable {
 				}
 
 			} else {
-				$this->_saltState = self::STATE_LOADING; // for query loaded object, define all loaded fields
+				$this->_saltState = self::_SALT_STATE_LOADING; // for query loaded object, define all loaded fields
 				foreach($loadedFields as $field) {
 					if (isset(self::$_saltMetadata[$child]['fields'][$field])) {
 						$this->_saltLoadValues[$field] = NULL; // will be loaded by setter later
@@ -250,7 +250,7 @@ abstract class Base extends Identifiable {
 					}
 				}
 			} // else $loadedFields === NULL
-		} // if STATE_NONE
+		} // if _SALT_STATE_NONE
 
 	} // function initMetadata
 
@@ -334,8 +334,8 @@ abstract class Base extends Identifiable {
 	 * @internal Called after PDO populate for setting correct state.
 	 */
 	public function afterLoad() {
-		$this->checkState(self::STATE_LOADING);
-		$this->_saltState = self::STATE_LOADED;
+		$this->checkState(self::_SALT_STATE_LOADING);
+		$this->_saltState = self::_SALT_STATE_LOADED;
 	}
 
 	/**
@@ -386,14 +386,14 @@ abstract class Base extends Identifiable {
 	 */
 	public function __set($fieldName, $value) {
 
-		$this->checkNotState(self::STATE_READONLY, 'Cannot change a readonly object');
-		$this->checkNotState(self::STATE_DELETED, 'Cannot modify an object in DELETE state');
+		$this->checkNotState(self::_SALT_STATE_READONLY, 'Cannot change a readonly object');
+		$this->checkNotState(self::_SALT_STATE_DELETED, 'Cannot modify an object in DELETE state');
 
 		$this->checkFieldExists($fieldName, TRUE);
 
 		$field = $this->getField($fieldName);
 
-		if (($this->_saltState === self::STATE_LOADING) && ($value === '')) {
+		if (($this->_saltState === self::_SALT_STATE_LOADING) && ($value === '')) {
 			$value = Field::EMPTY_STRING;
 		}
 
@@ -403,19 +403,19 @@ abstract class Base extends Identifiable {
 		// value can be null : array_key_exists instead of isset
 		if (array_key_exists($fieldName, $this->_saltExtraFields)) {
 			$this->_saltExtraFields[$fieldName] = $value;
-		} else if ($this->_saltState === self::STATE_LOADING) {
+		} else if ($this->_saltState === self::_SALT_STATE_LOADING) {
 			// first load
 			$this->_saltLoadValues[$fieldName] = $value;
 		} else {
-			if (($value !== $this->_saltLoadValues[$fieldName]) || ($this->_saltState === self::STATE_NEW)) {
+			if (($value !== $this->_saltLoadValues[$fieldName]) || ($this->_saltState === self::_SALT_STATE_NEW)) {
 				$this->_saltValues[$fieldName] = $value;
 			// value can be null : array_key_exists instead of isset
 			} else if (array_key_exists($fieldName, $this->_saltValues)) {
 				unset($this->_saltValues[$fieldName]);
 			}
 		}
-		if ($this->_saltState === self::STATE_LOADED) {
-			$this->_saltState = self::STATE_MODIFIED;
+		if ($this->_saltState === self::_SALT_STATE_LOADED) {
+			$this->_saltState = self::_SALT_STATE_MODIFIED;
 		}
 	}
 
@@ -424,7 +424,7 @@ abstract class Base extends Identifiable {
 	 * @return boolean TRUE if the object is readonly (Base::meta() is a readonly object)
 	 */
 	public function isReadonly() {
-		return ($this->_saltState === self::STATE_READONLY);
+		return ($this->_saltState === self::_SALT_STATE_READONLY);
 	}
 
 	/**
@@ -432,7 +432,7 @@ abstract class Base extends Identifiable {
 	 * @return boolean TRUE if the object have been modified
 	 */
 	public function isModified() {
-		return ($this->_saltState === self::STATE_MODIFIED)
+		return ($this->_saltState === self::_SALT_STATE_MODIFIED)
 				&& (count($this->getModifiedFields())>0);
 	}
 
@@ -441,7 +441,7 @@ abstract class Base extends Identifiable {
 	 * @return boolean TRUE if the object have been created with a new ...()
 	 */
 	public function isNew() {
-		return $this->_saltState === self::STATE_NEW;
+		return $this->_saltState === self::_SALT_STATE_NEW;
 	}
 
 	/**
@@ -449,7 +449,7 @@ abstract class Base extends Identifiable {
 	 * @return boolean TRUE if the object have been loaded for a database by PDO
 	 */
 	public function isLoaded() {
-		return $this->_saltState === self::STATE_LOADED;
+		return $this->_saltState === self::_SALT_STATE_LOADED;
 	}
 
 	/**
@@ -457,18 +457,18 @@ abstract class Base extends Identifiable {
 	 * @internal
 	 */
 	public function delete() {
-		$this->checkState(array(self::STATE_LOADED, self::STATE_DELETED));
+		$this->checkState(array(self::_SALT_STATE_LOADED, self::_SALT_STATE_DELETED));
 
-		$this->_saltState = self::STATE_DELETED;
+		$this->_saltState = self::_SALT_STATE_DELETED;
 	}
 
 	/**
 	 * Make the object readonly. All changes will throw an exception.
 	 */
 	public function readonly() {
-		$this->checkNotState(self::STATE_MODIFIED, 'Cannot set a readonly state on a modified object');
+		$this->checkNotState(self::_SALT_STATE_MODIFIED, 'Cannot set a readonly state on a modified object');
 
-		$this->_saltState = self::STATE_READONLY;
+		$this->_saltState = self::_SALT_STATE_READONLY;
 	}
 
 	/**
