@@ -62,7 +62,7 @@ class UpdateQuery extends Query {
 	 * Allow the query to have an "open" WHERE clause, without the clause on object id added automatically
 	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again multiple update after an allow
 	 */
-	public function allowMultipleUpdate($value = TRUE) {
+	public function allowMultipleChange($value = TRUE) {
 		$this->allowMultiple = $value;
 	}
 
