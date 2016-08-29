@@ -21,7 +21,11 @@ define('salt\PATH', Salt::saltPath());
 define('salt\RESERVED_PREFIX', '_salt');
 
 // add all Salt classes to autoload
-Salt::addClassFolder(PATH, __NAMESPACE__);
+Salt::addClassFolder(PATH, __NAMESPACE__, '.class.php', 'vendor');
+
+// add all vendor classes in default namespace
+// Salt::addClassFolder(PATH.'vendor', NULL, '.class.php');
+
 // register Salt autoload
 spl_autoload_register(__NAMESPACE__.'\Salt::loadClass');
 
@@ -54,7 +58,9 @@ class Salt {
 
 		// retrieve web root path
 		$relative = self::relativePath($destIgnoreLevel);
-		$root = self::computePath($_SERVER['SCRIPT_NAME'], $relative);
+
+		$caller = implode('/', explode('/', $_SERVER['SCRIPT_NAME'], -1)); // remove file part
+		$root = self::computePath($caller, $relative);
 
 		// compute relative path between requested URI and web root
 		$rel = self::computeRelativePath($_SERVER['REQUEST_URI'], $root);
@@ -92,11 +98,15 @@ class Salt {
 	 * @param string $folder root folder that contain classes
 	 * @param string $namespace (Optional, NULL) Namespace to use for register classes
 	 * @param string $pattern (Optional, .class.php) Suffix of files that contains classes
+	 * @param string[] $excludes (Optional, NULL) List of folders or files to exclude. Can be a part of a folder/file
 	 */
-	public static function addClassFolder($folder, $namespace = NULL, $pattern = '.class.php') {
-
+	public static function addClassFolder($folder, $namespace = NULL, $pattern = '.class.php', $excludes = NULL) {
 		Benchmark::start('salt.findClasses');
-		self::$ALL_CLASSES += self::findAllClasses(realpath($folder), $namespace, $pattern);
+		$resolvedFolder = realpath($folder);
+		if ($resolvedFolder === FALSE) {
+			throw new SaltException('Folder ['.$folder.'] does not exists');
+		}
+		self::$ALL_CLASSES += self::findAllClasses($resolvedFolder, $namespace, $pattern, $excludes = NULL);
 		Benchmark::stop('salt.findClasses');
 	}
 
@@ -105,10 +115,19 @@ class Salt {
 	 * @param string $folder Folder to inspect
 	 * @param string $namespace (Optional, NULL) Namespace to use
 	 * @param string $pattern (Optional, .class.php) Suffix to use for filter files
+	 * @param string[] $excludes (Optional, NULL) List of folders or files to exclude. Can be a part of a folder/file
 	 * @return string[] List or found files as ( Namespace\ClassName => FilePath )
 	 */
-	private static function findAllClasses($folder, $namespace = NULL, $pattern = '.class.php') {
+	private static function findAllClasses($folder, $namespace = NULL, $pattern = '.class.php', $excludes = NULL) {
 		$classes=array();
+
+		if ($excludes === NULL) {
+			$excludes = array();
+		}
+		if (!is_array($excludes)) {
+			$excludes = array($excludes);
+		}
+		$excludes = array_map('strtolower', $excludes);
 
 		if ($namespace !== NULL) {
 			$namespace = $namespace.'\\';
@@ -124,7 +143,16 @@ class Salt {
 		$patternSize=strlen($pattern);
 		foreach($iterator as $k => $v) {
 			if (substr($k, -$patternSize)===$pattern) {
-				$classes[$namespace.substr($v->getFilename(), 0, -$patternSize)]=$k;
+				$process = TRUE;
+				foreach($excludes as $path) {
+					if (strpos(strtolower($k), $path) !== FALSE) {
+						$process = FALSE;
+						break;
+					}
+				}
+				if ($process) {
+					$classes[$namespace.substr($v->getFilename(), 0, -$patternSize)]=$k;
+				}
 			}
 		}
 		return $classes;
@@ -149,16 +177,15 @@ class Salt {
 	}
 
 	/**
-	 * Compute a folder from a full path and a relative path
-	 * @param string $origin
-	 * @param string $relative
-	 * @return string the resolved path
+	 * Compute a folder from a path and a relative path
+	 * @param string $origin a folder, with or without trailing /
+	 * @param string $relative relative folder
+	 * @return string the resolved path, always end with /
 	 */
 	public static function computePath($origin, $relative) {
 		$relative = explode('/', $relative);
 
-		$last = substr($origin, -1);
-		if ($last === '/') {
+		if (substr($origin, -1) === '/') {
 			$origin = substr($origin, 0, -1);
 		}
 		$origin = explode('/', $origin);
@@ -172,7 +199,11 @@ class Salt {
 			}
 		}
 		$result = implode('/', $origin);
-		if ($last === '/') {
+
+		if ($result==='') {
+			$result='.';
+		}
+		if (substr($result, -1) !== '/') {
 			$result.='/';
 		}
 		return $result;
