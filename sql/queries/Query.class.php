@@ -216,9 +216,9 @@ class Query extends BaseQuery {
 	private function addWhereExists($type, Query $otherQuery, $exists = TRUE) {
 		$this->addWhereClause($type, ($exists?'':'NOT ').'EXISTS (SELECT 1 '.$otherQuery->toBaseSQL().')');
 
-		$this->mergeBinds($other, 'JOIN');
-		$this->mergeBinds($other, 'WHERE');
-		$this->mergeBinds($other, 'GROUP');
+		$this->mergeBinds($otherQuery, 'JOIN');
+		$this->mergeBinds($otherQuery, 'WHERE');
+		$this->mergeBinds($otherQuery, 'GROUP');
 		//$this->binds=array_merge($this->binds, $otherQuery->getBindsBySource('JOIN', 'WHERE', 'GROUP'));
 	}
 

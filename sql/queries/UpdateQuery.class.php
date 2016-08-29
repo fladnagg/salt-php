@@ -116,13 +116,13 @@ class UpdateQuery extends Query {
 		$expr->asSetter($field);
 
 		if (isset($this->bindsBySetField[$fieldName])) {
-			foreach($this->bindsBySetField[$fieldName] as $b) {
-				unset($this->binds[$b]);
-			}
 			if (!isset($this->bindsSource['SET'])) {
 				$this->bindsSource['SET'] = array();
 			}
-			$this->bindsSource['SET'] = array_diff($this->bindsSource['SET'], $this->bindsBySetField[$fieldName]);
+			foreach($this->bindsBySetField[$fieldName] as $b) {
+				unset($this->bindsSource['SET'][$b]);
+				unset($this->binds[$b]);
+			}
 		}
 
 		$this->sets[$fieldName] = $this->resolveFieldName('SET', $expr);
