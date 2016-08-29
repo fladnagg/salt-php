@@ -265,19 +265,14 @@ class FormHelper {
 			}
 		}
 		if ($content === NULL) {
-			if ($tagType === self::TAG_OPEN) {
-				$result.='>';
-			} else {
-				$result.='/>';
+			if ($tagType !== self::TAG_OPEN) {
+				$result.='/';
 			}
+			$result.='>';
 		} else {
-			if ($tagType === self::TAG_OPEN) {
-				$result.='>'.$content;
-			} else {
-				if (trim($content) === '') {
-					$content='&nbsp;'; // XHTML validation is grumpy with empty tags (options, etc)
-				}
-				$result.='>'.$content.'</'.$tagName.'>';
+			$result.='>'.$content;
+			if ($tagType !== self::TAG_OPEN) {
+				$result.='</'.$tagName.'>';
 			}
 		}
 		return $result;
