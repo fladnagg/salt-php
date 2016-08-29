@@ -144,7 +144,7 @@ class UpdateQuery extends Query {
 		}
 
 		$sql='UPDATE '.$this->resolveTable();
-		$sql.=$this->joinsToSQL();
+		$sql.=$this->buildJoinClause();
 
 		$allSets=array();
 		foreach($this->sets as $field => $value) {
@@ -158,8 +158,8 @@ class UpdateQuery extends Query {
 		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {
 			throw new SaltException('You don\'t have a WHERE clause on UPDATE. Please call allowEmptyWhere() if you really want to do this');
 		}
-		$sql.=$this->wheresToSQL();
-		$sql.=$this->orderToSQL();
+		$sql.=$this->buildWhereClause();
+		$sql.=$this->buildOrderClause();
 
 		$this->sqlText = $sql;
 		return $this->sqlText;

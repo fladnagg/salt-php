@@ -86,8 +86,8 @@ class DeleteQuery extends UpdateQuery {
 			throw new SaltException('You don\'t have a WHERE clause on DELETE. Please call allowEmptyWhere() if you really want to do this');
 		}
 
-		$sql.=$this->wheresToSQL();
-		$sql.=$this->orderToSQL();
+		$sql.=$this->buildWhereClause();
+		$sql.=$this->buildOrderClause();
 
 		$this->sqlText = $sql;
 		return $sql;
