@@ -44,8 +44,8 @@ class SqlExpr extends SqlBindField {
 	 */
 	private $timestamp = FALSE;
 	/**
-	 * @var string[] the template to apply
-	 * @content array of (template, param1, param2, ...)
+	 * @var mixed[][] the template to apply
+	 * @content array of array of (template, param1, param2, ...)
 	 */
 	private $template = array();
 	/**
@@ -108,10 +108,9 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * Create a new SqlExpr for a static text
 	 *
-	 * Warning : $text <b>HAVE TO BE escaped for sql usage, we recommand to do NOT use user input in it.</b><br/>
-	 * - Number is used unchanged<br/>
+	 * Warning : $text <b>HAVE TO BE escaped for sql usage, we recommand to DO NO USE user input in it.</b><br/>
 	 * - Boolean is converted to 0/1<br/>
-	 * - Text is surrounded with ''
+	 * - Number and text are used unchanged<br/>
 	 * @param mixed $text text to transform in SqlExpr.
 	 * @return \salt\SqlExpr
 	 */
@@ -254,7 +253,7 @@ class SqlExpr extends SqlBindField {
 			}
 			$params[] = $arg;
 		}
-		$this->template = array($template, $params);
+		$this->template[] = array($template, $params);
 		return $this;
 	}
 
@@ -270,6 +269,24 @@ class SqlExpr extends SqlBindField {
 			$this->template(self::TEMPLATE_MAIN.' - '.self::TEMPLATE_PARAM, SqlExpr::value(abs($value)));
 		}
 		return $this;
+	}
+
+	/**
+	 * Add something before the SqlExpr
+	 * @param mixed|SqlExpr $arg converted with SqlExpr::value() if needed
+	 * @return SqlExpr current object
+	 */
+	public function before($arg) {
+		return $this->template(self::TEMPLATE_PARAM.self::TEMPLATE_MAIN, $arg);
+	}
+
+	/**
+	 * Add something after the SqlExpr
+	 * @param mixed|SqlExpr $arg converted with SqlExpr::value() if needed
+	 * @return SqlExpr current object
+	 */
+	public function after($arg) {
+		return $this->template(self::TEMPLATE_MAIN.self::TEMPLATE_PARAM, $arg);
 	}
 
 	/**
@@ -433,12 +450,10 @@ class SqlExpr extends SqlBindField {
 					$s.='NULL';
 				} else if (!is_scalar($this->data)) {
 					throw new SaltException('Cannot use a not scalar value in text()');
-				} else if (is_numeric($this->data)) {
-					$s.=$this->data;
 				} else if (is_bool($this->data)) {
 					$s.=($this->data)?1:0;
 				} else {
-					$s.='\''.$this->data.'\'';
+					$s.=$this->data;
 				}
 			break;
 		}
@@ -469,8 +484,8 @@ class SqlExpr extends SqlBindField {
 		}
 
 		// Templates
-		if (count($this->template)>0) {
-			list($template, $args) = $this->template;
+		foreach($this->template as $t) {
+			list($template, $args) = $t;
 
 			$template = explode(self::TEMPLATE_PARAM, $template);
 			$params=array();
