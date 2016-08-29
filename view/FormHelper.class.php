@@ -475,8 +475,10 @@ class FormHelper {
 
 		$attrs = self::commonTagAttributes($name, $value, $classes, $others);
 
-		$value = $attrs['value'];
-		unset($attrs['value']);
+		if (array_key_exists('value', $attrs)) { // can be NULL
+			$value = $attrs['value'];
+			unset($attrs['value']);
+		}
 
 		return self::HTMLtag('textarea', $attrs, $Input->HTML($value));
 	}
