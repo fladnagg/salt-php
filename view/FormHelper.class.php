@@ -499,10 +499,10 @@ class FormHelper {
 			$attrs['type'] = $type;
 		}
 
-		if (($value === NULL) && array_key_exists(self::PARAM_RAW_VALUE, $attrs)) {
+		if (($value === NULL) && isset($attrs[self::PARAM_RAW_VALUE])) {
 			$value = $attrs[self::PARAM_RAW_VALUE];
 		}
-		if (($value === NULL) && array_key_exists('value', $attrs)) {
+		if (($value === NULL) && isset($attrs['value'])) {
 			$value = $attrs['value'];
 		}
 
