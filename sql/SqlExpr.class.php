@@ -108,11 +108,11 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * Create a new SqlExpr for a static text
 	 *
-	 * Warning : $text HAVE TO BE escaped for sql usage, we recommand to do NOT use user input in it.<br/>
+	 * Warning : $text <b>HAVE TO BE escaped for sql usage, we recommand to do NOT use user input in it.</b><br/>
 	 * - Number is used unchanged<br/>
 	 * - Boolean is converted to 0/1<br/>
 	 * - Text is surrounded with ''
-	 * @param string $text text to transform in SqlExpr.
+	 * @param mixed $text text to transform in SqlExpr.
 	 * @return \salt\SqlExpr
 	 */
 	public static function text($text) {
