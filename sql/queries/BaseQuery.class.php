@@ -113,7 +113,7 @@ abstract class BaseQuery extends SqlBindField {
 	/**
 	 * Retrieve binds linked to one or more sources
 	 * @param string ... $sources function take unlimited source bind parameters
-	 * @return string[] binds registered with theses sources
+	 * @return string[][] binds registered with theses sources
 	 */
 	protected function getBindsBySource($sources) {
 		$sources = func_get_args();
@@ -122,7 +122,8 @@ abstract class BaseQuery extends SqlBindField {
 		foreach($sources as $source) {
 			if (isset($this->bindsSource[$source])) {
 				// we keep only keys that exists in source
-				$binds+=array_intersect_key($this->getBinds(), array_flip($this->bindsSource[$source]));
+				$bindKeys = array_flip($this->bindsSource[$source]);
+				$binds = array_merge($binds, array_intersect_key($this->binds, $bindKeys));
 			}
 		}
 		return $binds;
@@ -136,7 +137,7 @@ abstract class BaseQuery extends SqlBindField {
 	protected function mergeBinds(SqlBindField $other, $source = NULL) {
 		if (!($other instanceof BaseQuery)) {
 			$otherBinds = $other->getBinds();
-			$otherBindsSource = array($source => $otherBinds);
+			$otherBindsSource = array($source => array_keys($otherBinds));
 		} else if ($source !== NULL) {
 			$otherBinds = $other->getBindsBySource($source);
 			$otherBindsSource = $other->bindsSource;
