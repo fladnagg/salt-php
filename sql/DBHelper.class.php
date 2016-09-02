@@ -169,7 +169,7 @@ class DBHelper {
 
 			if ($bindingObject !== NULL) {
 				$binding = get_class($bindingObject);
-				$fields = NULL;
+				//$fields = NULL;
 			}
 
 			try {

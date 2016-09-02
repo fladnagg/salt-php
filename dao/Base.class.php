@@ -226,12 +226,24 @@ abstract class Base extends Identifiable {
 			}
 		}
 		if ($this->_saltState === self::_SALT_STATE_NONE) {
-			if ($loadedFields === NULL) {
-				if ($loadAsNew) {
-					$this->_saltState = self::_SALT_STATE_NEW_LOADING;
-				} else {
-					$this->_saltState = self::_SALT_STATE_NEW;
+			if ($loadAsNew) {
+				$this->_saltState = self::_SALT_STATE_NEW_LOADING;
+				
+				foreach($loadedFields as $field) {
+					if (isset(self::$_saltMetadata[$child]['fields'][$field])) {
+						$this->_saltLoadValues[$field] = $field->defaultValue;
+						if ($field->defaultValue !== NULL) {
+							$this->_saltValues[$key]=$field->defaultValue; // for create in INSERT statement
+						}
+					} else {
+						$this->_saltExtraFields[$field] = NULL;
+						$this->_saltExtraFieldsMetadata[$field] = Field::newText($field, $field, TRUE);
+					}
 				}
+
+			} else if ($loadedFields === NULL) {
+				$this->_saltState = self::_SALT_STATE_NEW;
+
 				// for manually created new object, load all default values
 				foreach(self::$_saltMetadata[$child]['fields'] as $key => $field) {
 					$this->_saltLoadValues[$key]=$field->defaultValue;
