@@ -328,13 +328,13 @@ class Query extends BaseQuery {
 	 * Example : <pre>$query->select(SqlExpr::func('count', '*'), 'nb');
 	 * $query->orderDesc($query->getSelect('nb'));</pre>
 	 * @param string $alias name of an alias
-	 * @return SqlExpr the expression registered for this alias
+	 * @return SqlExpr the expression for this alias
 	 */
 	public function getSelect($alias) {
 		foreach($this->fields as $select) {
 			list($expr, $aliasName) = $select;
 			if ($alias === $aliasName) {
-				return $expr;
+				return SqlExpr::text($alias);
 			}
 		}
 		throw new SaltException('Cannot find the alias ['.$alias.'] in the query');
@@ -663,13 +663,13 @@ class Query extends BaseQuery {
 		$selectClause = $this->buildSelectClause();
 		$hasDistinct = (strpos(strtolower($selectClause), 'distinct') !== FALSE);
 
-		if ($hasDistinct) {
+		if (($hasDistinct) || (count($this->groups) > 0)) {
 			// if select clause have a distinct... we have to count the complete subquery...
 			$sql.=' FROM ( SELECT '.$selectClause.$this->toBaseSQL().') c';
-		} else if (count($this->groups) > 0) {
-			// with groups, count() need to be executed on a sub select query...
-			// @see http://stackoverflow.com/questions/364825/getting-the-number-of-rows-with-a-group-by-query
-			$sql.=' FROM ( SELECT 1'.$this->toBaseSQL().' ) c';
+// 		} else if (count($this->groups) > 0) {
+// 			// with groups, count() need to be executed on a sub select query...
+// 			// @see http://stackoverflow.com/questions/364825/getting-the-number-of-rows-with-a-group-by-query
+// 			$sql.=' FROM ( SELECT 1'.$this->toBaseSQL().' ) c';
 		} else {
 			// more simple query otherwise
 			$sql.=$this->toBaseSQL();
