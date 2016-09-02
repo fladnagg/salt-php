@@ -154,12 +154,14 @@ abstract class Base extends Identifiable {
 	 * Retrieve an object by ID on a database
 	 * @param DBHelper $db The database to search object
 	 * @param mixed $id a value of the id field
+	 * @param Base $bindObject (Optional) bind result to another object
 	 * @return static|NULL the first object with this id. All fields are loaded. Return NULL if no object found
 	 */
-	public function getById(DBHelper $db, $id) {
-		$q = new Query($this, TRUE);
-		$q->whereAnd($obj->getIdField(), '=', $id);
-		$r = $db->execQuery($q);
+	public static function getById(DBHelper $db, $id, Base $bindObject = NULL) {
+		$meta = static::meta();
+		$q = new Query($meta, TRUE);
+		$q->whereAnd($meta->getIdField(), '=', $id);
+		$r = $db->execQuery($q, NULL, $bindObject);
 		return first($r->data);
 	}
 
@@ -167,13 +169,15 @@ abstract class Base extends Identifiable {
 	 * Retrieve a list of object on a database
 	 * @param DBHelper $DB database to search objects
 	 * @param mixed[] $ids list of value to search
+	 * @param Base $bindObject (Optional) bind results to another object
 	 * @return static[] associative array : id => object
 	 */
-	public function getByIds(DBHelper $DB, array $ids) {
-		$q = new Query($this, TRUE);
-		$idField = $this->getIdField();
+	public static function getByIds(DBHelper $DB, array $ids, Base $bindObject = NULL) {
+		$meta = static::meta();
+		$q = new Query($meta, TRUE);
+		$idField = $meta->getIdField();
 		$q->whereAnd($idField , 'IN', $ids);
-		$r = $DB->execQuery($q);
+		$r = $DB->execQuery($q, NULL, $bindObject);
 		$result = array();
 		foreach($r->data as $obj) {
 			$result[$obj->$idField] = $obj;
@@ -226,23 +230,13 @@ abstract class Base extends Identifiable {
 			}
 		}
 		if ($this->_saltState === self::_SALT_STATE_NONE) {
-			if ($loadAsNew) {
-				$this->_saltState = self::_SALT_STATE_NEW_LOADING;
-				
-				foreach($loadedFields as $field) {
-					if (isset(self::$_saltMetadata[$child]['fields'][$field])) {
-						$this->_saltLoadValues[$field] = $field->defaultValue;
-						if ($field->defaultValue !== NULL) {
-							$this->_saltValues[$key]=$field->defaultValue; // for create in INSERT statement
-						}
-					} else {
-						$this->_saltExtraFields[$field] = NULL;
-						$this->_saltExtraFieldsMetadata[$field] = Field::newText($field, $field, TRUE);
-					}
+			if (($loadedFields === NULL) || $loadAsNew) {
+				if ($loadAsNew) {
+					$this->_saltState = self::_SALT_STATE_NEW_LOADING;
+					$extraFields = $loadedFields;
+				} else {
+					$this->_saltState = self::_SALT_STATE_NEW;
 				}
-
-			} else if ($loadedFields === NULL) {
-				$this->_saltState = self::_SALT_STATE_NEW;
 
 				// for manually created new object, load all default values
 				foreach(self::$_saltMetadata[$child]['fields'] as $key => $field) {
@@ -251,6 +245,7 @@ abstract class Base extends Identifiable {
 						$this->_saltValues[$key]=$field->defaultValue; // for create in INSERT statement
 					}
 				}
+
 				if ($extraFields !== NULL) {
 					foreach($extraFields as $field) {
 						if (!isset(self::$_saltMetadata[$child]['fields'][$field])) {
