@@ -73,9 +73,9 @@ class Pagination {
 	 */
 	public function setCount($count) {
 		$this->count = $count;
-		if ($this->offset > $count) {
-			$this->offset = 0;
-		}
+// 		if ($this->offset > $count) {
+// 			$this->offset = 0;
+// 		}
 	}
 
 	/**
