@@ -140,7 +140,7 @@ class DBHelper {
 	public function execCountQuery(Query $query) {
 		$st = $this->exec($query, TRUE);
 		$count = $st->fetchColumn(0);
-		return $count;
+		return intval($count);
 	}
 
 	/**
