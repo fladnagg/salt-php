@@ -197,21 +197,29 @@ class DBHelper {
 	 * @throws DBException if prepare or execute query failed with a PDOException
 	 * @throws SaltException if something else failed
 	 */
-	private function exec(BaseQuery $query, $count = false, Pagination $pagination = NULL) {
+	private function exec(BaseQuery $query, $count = FALSE, Pagination $pagination = NULL) {
 		Benchmark::increment('salt.queries');
 
-		$sql='';
 		if ($count) {
-			$sql = $query->toCountSQL();
-		} else {
-			$sql = $query->toSQL($pagination);
+			$query = $query->toCountQuery();
+		}
+		
+		$sql = $query->toSQL();
+		$binds = $query->getBinds();
+
+		if (!$count && ($pagination != NULL)) {
+			$paginationBinds = SqlBindField::getPaginationBinds($pagination);
+			list($offset, $limit) = array_keys($paginationBinds);
+
+			$sql.=' LIMIT '.$offset.','.$limit;
+			$binds = array_merge($binds, $paginationBinds);
 		}
 
 		try {
 
 			Benchmark::start('salt.prepare');
 			$st = $this->base->prepare($sql);
-			foreach($query->getBinds() as $param => $data) {
+			foreach($binds as $param => $data) {
 				if ($data['value'] === NULL) {
 					$st->bindValue($param, $data['value'], PDO::PARAM_NULL);
 				} else {
@@ -242,14 +250,14 @@ class DBHelper {
 			$time = Benchmark::end('salt.query');
 			Benchmark::addTime('salt.queries-exec', $time);
 
-			$this->addDebugData($sql, $query->getBinds(), round($time, BENCH_PRECISION));
+			$this->addDebugData($sql, $binds, round($time, BENCH_PRECISION));
 
-		} catch (PDOException $ex) {
-			$this->addDebugData($sql, $query->getBinds(), NULL);
+		} catch (\PDOException $ex) {
+			$this->addDebugData($sql, $binds, NULL);
 			throw new DBException($ex->getMessage(), $sql, $ex);
 
 		} catch (\Exception $ex) {
-			$this->addDebugData($sql, $query->getBinds(), NULL);
+			$this->addDebugData($sql, $binds, NULL);
 			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 
@@ -287,7 +295,7 @@ class DBHelper {
 
 			// parameters format is unknown for manual made queries
 			//$this->addDebugData($sql, array(), round($time, BENCH_PRECISION));
-		} catch (PDOException $ex) {
+		} catch (\PDOException $ex) {
 			//$this->addDebugData($sql, array(), NULL);
 			throw new DBException($ex->getMessage(), $sql, $ex);
 		} catch (\Exception $ex) {
@@ -307,11 +315,16 @@ class DBHelper {
 	private function addDebugData($sql, array $binds, $temps) {
 		Benchmark::start('salt.queries-debugInfo');
 		// the goal is NOT to execute the query here, but only to build it for a debug display if needed : binds values are NOT escaped !
-		$sqlValues = preg_replace_callback('(:v[0-9]+)', function($bind) use(&$binds) {
-			$v = $binds[$bind[0]]['value'];
-			if ($binds[$bind[0]]['type'] === FieldType::TEXT) $v = '\''.$v.'\'';
-			if ($binds[$bind[0]]['type'] === FieldType::BOOLEAN) $v = ($v)?1:0;
-			if ($v === NULL) $v='NULL';
+		$sqlValues = preg_replace_callback('(:[vL][0-9]+)', function($bind) use(&$binds) {
+			if (isset($binds[$bind[0]])) {
+				$b = $binds[$bind[0]];
+				$v = $b['value'];
+				if ($b['type'] === FieldType::TEXT) $v = '\''.$v.'\'';
+				if ($b['type'] === FieldType::BOOLEAN) $v = ($v)?1:0;
+				if ($v === NULL) $v='NULL';
+			} else {
+				$v = '/*MISSING*/';
+			}
 			return $v;
 		}, $sql);
 

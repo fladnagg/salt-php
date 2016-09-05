@@ -178,7 +178,7 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr the field to order by ASC
 	 */
 	public function orderAsc($fieldOrExpr) {
-		$this->orders[]=$this->resolveFieldName('ORDER', $fieldOrExpr).' ASC';
+		$this->orders[]=$this->resolveFieldName(ClauseType::ORDER, $fieldOrExpr).' ASC';
 	}
 
 	/**
@@ -186,7 +186,7 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr the field to order by DESC
 	 */
 	 public function orderDesc($fieldOrExpr) {
-		$this->orders[]=$this->resolveFieldName('ORDER', $fieldOrExpr).' DESC';
+		$this->orders[]=$this->resolveFieldName(ClauseType::ORDER, $fieldOrExpr).' DESC';
 	}
 
 	/**
@@ -216,10 +216,9 @@ class Query extends BaseQuery {
 	private function addWhereExists($type, Query $otherQuery, $exists = TRUE) {
 		$this->addWhereClause($type, ($exists?'':'NOT ').'EXISTS (SELECT 1 '.$otherQuery->toBaseSQL().')');
 
-		$this->mergeBinds($otherQuery, 'JOIN');
-		$this->mergeBinds($otherQuery, 'WHERE');
-		$this->mergeBinds($otherQuery, 'GROUP');
-		//$this->binds=array_merge($this->binds, $otherQuery->getBindsBySource('JOIN', 'WHERE', 'GROUP'));
+		$this->linkBindsOf($otherQuery, ClauseType::WHERE, ClauseType::JOIN);
+		$this->linkBindsOf($otherQuery, ClauseType::WHERE, ClauseType::WHERE);
+		$this->linkBindsOf($otherQuery, ClauseType::WHERE, ClauseType::GROUP);
 	}
 
 	/**
@@ -290,8 +289,7 @@ class Query extends BaseQuery {
 	private function addWhereQuery($type, Query $subQuery) {
 		if ($subQuery->alias == $this->alias) {
 			$this->addWhereClause($type, '('.implode(' ',$subQuery->wheres).')');
-			//$this->binds=array_merge($this->binds, $subQuery->getBindsBySource('WHERE'));
-			$this->mergeBinds($subQuery, 'WHERE');
+			$this->linkBindsOf($subQuery, ClauseType::WHERE, ClauseType::WHERE);
 		} else {
 			throw new SaltException('Cannot use a subquery on a different table of the main query');
 		}
@@ -368,10 +366,10 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $valueOrExpr value or SqlExpr
 	 */
 	private function addWhere($addType, $fieldOrExpr, $operator, $valueOrExpr) {
-		$absoluteField = $this->resolveFieldName('WHERE', $fieldOrExpr);
+		$absoluteField = $this->resolveFieldName(ClauseType::WHERE, $fieldOrExpr);
 
 		// a value can be a field of another query
-		$valueOrExpr = $this->resolveFieldName('WHERE', $valueOrExpr, $fieldOrExpr);
+		$valueOrExpr = $this->resolveFieldName(ClauseType::WHERE, $valueOrExpr, $fieldOrExpr);
 		if (is_array($valueOrExpr)) {
 			$valueOrExpr = '('.implode(', ', $valueOrExpr).')';
 		}
@@ -383,7 +381,7 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr field name to group by
 	 */
 	public function groupBy($fieldOrExpr) {
-		$absoluteField = $this->resolveFieldName('GROUP', $fieldOrExpr);
+		$absoluteField = $this->resolveFieldName(ClauseType::GROUP, $fieldOrExpr);
 		$this->groups[]=$absoluteField;
 	}
 
@@ -436,9 +434,9 @@ class Query extends BaseQuery {
 			'on'=>array(),
 		);
 
-		$absoluteField = $this->resolveFieldName('JOIN', $fieldOrExpr);
+		$absoluteField = $this->resolveFieldName(ClauseType::JOIN, $fieldOrExpr);
 
-		$valueOrExpr = $this->resolveFieldName('JOIN', $valueOrExpr, $fieldOrExpr);
+		$valueOrExpr = $this->resolveFieldName(ClauseType::JOIN, $valueOrExpr, $fieldOrExpr);
 		if (is_array($valueOrExpr)) {
 			$valueOrExpr = '('.implode(', ', $valueOrExpr).')';
 		}
@@ -448,24 +446,27 @@ class Query extends BaseQuery {
 
 		$this->joins[$other->alias] = $join;
 
-		if (count($other->binds) > 0) {
-			$this->mergeBinds($other);
-		}
-
 		if ($withOtherDatas) {
 			// Merge of others parameters
 			if (count($other->fields) > 0) {
 				$this->fields=array_merge($this->fields, $other->fields);
+				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::SELECT);
 			}
 			if (count($other->wheres) > 0) {
 				$this->addWhereClause('AND', $other->wheres);
+				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::WHERE);
 			}
 			if (count($other->groups) > 0) {
 				$this->groups=array_merge($this->groups, $other->groups);
+				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::GROUP);
 			}
 			if (count($other->orders) > 0) {
 				$this->orders=array_merge($this->orders, $other->orders);
+				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::ORDER);
 			}
+		} else {
+			// join (Select ...) : link ALL binds, because we include full query text
+			$this->linkBindsOf($other, ClauseType::JOIN);
 		}
 	}
 
@@ -518,8 +519,8 @@ class Query extends BaseQuery {
 	 * @param Query $whereQuery the query to add in ON clause
 	 */
 	private function addJoinOnQuery($type, Query $other, Query $whereQuery) {
-		$this->mergeBinds($whereQuery, 'WHERE');
 		$this->joins[$other->alias]['on'][]=' '.$type.' ('.implode(' ', $whereQuery->wheres).')';
+		$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::WHERE);
 	}
 
 	/**
@@ -536,9 +537,9 @@ class Query extends BaseQuery {
 			throw new SaltException('No join found for alias '.$other->alias.'.');
 		}
 
-		$absoluteField = $this->resolveFieldName('JOIN', $fieldOrExpr);
+		$absoluteField = $this->resolveFieldName(ClauseType::JOIN, $fieldOrExpr);
 
-		$valueOrExpr = $this->resolveFieldName('JOIN', $valueOrExpr, $fieldOrExpr);
+		$valueOrExpr = $this->resolveFieldName(ClauseType::JOIN, $valueOrExpr, $fieldOrExpr);
 		if (is_array($valueOrExpr)) {
 			$valueOrExpr = '('.implode(', ', $valueOrExpr).')';
 		}
@@ -654,28 +655,31 @@ class Query extends BaseQuery {
 	}
 
 	/**
-	 * get the SQL text for COUNT query
-	 * @return string SQL text of count(*) query
+	 * get the COUNT query
+	 * @return CountQuery the query for count objects of this query
 	 */
-	public function toCountSQL() {
+	public function toCountQuery() {
 		$sql='SELECT COUNT(*) as nb';
 
 		$selectClause = $this->buildSelectClause();
 		$hasDistinct = (strpos(strtolower($selectClause), 'distinct') !== FALSE);
 
+		$excludeBinds = array();
 		if (($hasDistinct) || (count($this->groups) > 0)) {
 			// if select clause have a distinct... we have to count the complete subquery...
+ 			// with groups, count() also need to be executed on a sub select query...
+ 			// @see http://stackoverflow.com/questions/364825/getting-the-number-of-rows-with-a-group-by-query
 			$sql.=' FROM ( SELECT '.$selectClause.$this->toBaseSQL().') c';
-// 		} else if (count($this->groups) > 0) {
-// 			// with groups, count() need to be executed on a sub select query...
-// 			// @see http://stackoverflow.com/questions/364825/getting-the-number-of-rows-with-a-group-by-query
-// 			$sql.=' FROM ( SELECT 1'.$this->toBaseSQL().' ) c';
 		} else {
-			// more simple query otherwise
+			$excludeBinds = $this->getBinds(ClauseType::SELECT);
+			// more simple query without select clause
 			$sql.=$this->toBaseSQL();
 		}
 
-		return $sql;
+		$binds = $this->getBinds();
+		$binds = array_diff_key($binds, $excludeBinds);
+
+		return new CountQuery($sql, $binds);
 	}
 
 	/**
@@ -690,38 +694,23 @@ class Query extends BaseQuery {
 			list($expr, $alias) = $data;
 
 			$fields[]=$expr->toSQL().' as '.$alias;
-			$this->mergeBinds($expr, 'SELECT');
+			$this->linkBindsOf($expr, ClauseType::SELECT);
 		}
 		$sql.=implode(', ', $fields);
 		return $sql;
 	}
 
 	/**
-	 * get the SQL text for SELECT query
-	 * @param Pagination $pagination pagination object for LIMIT OFFSET in query
-	 * @return string SQL text of the query
+	 * {@inheritDoc}
+	 * @see \salt\SqlBindField::buildSQL()
 	 */
-	public function toSQL(Pagination $pagination = NULL) {
+	protected function buildSQL() {
 		$sql='SELECT ';
-
+		
 		$sql.=$this->buildSelectClause();
-
 		$sql.=$this->toBaseSQL();
-
 		$sql.=$this->buildOrderClause();
-
-		if ($pagination != NULL) {
-
-			$offset = $limit = NULL;
-
-			// allow to execute the query more than one time with different pagination values.
-			//   without this, binds are added at each execution, and 2nd query failed.
-			$offset = $this->setOrRemplaceBind('LIMIT-offset', $pagination->getOffset(), FieldType::NUMBER);
-			$limit = $this->setOrRemplaceBind('LIMIT-limit', $pagination->getLimit(), FieldType::NUMBER);
-
-			$sql.=' LIMIT '.$offset.','.$limit;
-		}
-
+		
 		return $sql;
 	}
 }

@@ -154,14 +154,13 @@ abstract class Base extends Identifiable {
 	 * Retrieve an object by ID on a database
 	 * @param DBHelper $db The database to search object
 	 * @param mixed $id a value of the id field
-	 * @param Base $bindObject (Optional) bind result to another object
 	 * @return static|NULL the first object with this id. All fields are loaded. Return NULL if no object found
 	 */
-	public static function getById(DBHelper $db, $id, Base $bindObject = NULL) {
-		$meta = static::meta();
+	public static function getById(DBHelper $db, $id) {
+		$meta  = static::meta();
 		$q = new Query($meta, TRUE);
 		$q->whereAnd($meta->getIdField(), '=', $id);
-		$r = $db->execQuery($q, NULL, $bindObject);
+		$r = $db->execQuery($q);
 		return first($r->data);
 	}
 
@@ -169,15 +168,14 @@ abstract class Base extends Identifiable {
 	 * Retrieve a list of object on a database
 	 * @param DBHelper $DB database to search objects
 	 * @param mixed[] $ids list of value to search
-	 * @param Base $bindObject (Optional) bind results to another object
 	 * @return static[] associative array : id => object
 	 */
-	public static function getByIds(DBHelper $DB, array $ids, Base $bindObject = NULL) {
+	public static function getByIds(DBHelper $DB, array $ids) {
 		$meta = static::meta();
 		$q = new Query($meta, TRUE);
 		$idField = $meta->getIdField();
 		$q->whereAnd($idField , 'IN', $ids);
-		$r = $DB->execQuery($q, NULL, $bindObject);
+		$r = $DB->execQuery($q);
 		$result = array();
 		foreach($r->data as $obj) {
 			$result[$obj->$idField] = $obj;

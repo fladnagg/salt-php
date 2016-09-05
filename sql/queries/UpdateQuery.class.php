@@ -15,11 +15,6 @@ class UpdateQuery extends Query {
 	/**
 	 * @var mixed[] list of fields => values to update */
 	private $sets = array();
-	/**
-	 * @var mixed[] list of fieldName => array of binds.
-	 * @content Register all binds used for each field. If a field is changed twice, previous binds are canceled
-	 */
-	private $bindsBySetField = array();
 
 	/**
 	 * @var boolean TRUE for allow WHERE clause to update multiple objects
@@ -29,11 +24,6 @@ class UpdateQuery extends Query {
 	 * @var boolean TRUE for allow and empty WHERE clause
 	 */
 	protected $allowEmptyWhere = FALSE;
-
-	/**
-	 * @var string memoized SQL text of UPDATE query.
-	 */
-	protected $sqlText = NULL;
 
 	/**
 	 * Create a new UPDATE query
@@ -115,34 +105,19 @@ class UpdateQuery extends Query {
 		}
 		$expr->asSetter($field);
 
-		if (isset($this->bindsBySetField[$fieldName])) {
-			if (!isset($this->bindsSource['SET'])) {
-				$this->bindsSource['SET'] = array();
-			}
-			foreach($this->bindsBySetField[$fieldName] as $b) {
-				unset($this->bindsSource['SET'][$b]);
-				unset($this->binds[$b]);
-			}
-		}
+		
+		$clauseKey = ClauseType::SET.'-'.$fieldName;
 
-		$this->sets[$fieldName] = $this->resolveFieldName('SET', $expr);
+		$this->removeBinds($clauseKey);
 
-		$binds = $expr->getBinds();
-		$this->bindsBySetField[$fieldName] = array_keys($binds);
+		$this->sets[$fieldName] = $this->resolveFieldName($clauseKey, $expr);
 	}
 
-	/**
+		/**
 	 * {@inheritDoc}
-	 * @param Pagination $pagination not used here
-	 * @see \salt\Query::toSQL()
+	 * @see \salt\SqlBindField::buildSQL()
 	 */
-	public function toSQL(Pagination $pagination = NULL) {
-		if ($this->sqlText !== NULL) {
-			// without memoization, object id bind is added at every call and the 2+ execution failed.
-			// we have to delay add of object id bind at the end for allow the call to allowMultipleUpdate() before
-			return $this->sqlText;
-		}
-
+	protected function buildSQL() {
 		$sql='UPDATE '.$this->resolveTable();
 		$sql.=$this->buildJoinClause();
 
@@ -161,7 +136,6 @@ class UpdateQuery extends Query {
 		$sql.=$this->buildWhereClause();
 		$sql.=$this->buildOrderClause();
 
-		$this->sqlText = $sql;
-		return $this->sqlText;
+		return $sql;
 	}
 }

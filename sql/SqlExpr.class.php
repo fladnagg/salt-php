@@ -62,11 +62,6 @@ class SqlExpr extends SqlBindField {
 	private $objectType = NULL;
 
 	/**
-	 * @var string memoized value of toSql() function
-	 */
-	private $sqlText = NULL;
-
-	/**
 	 * create a new SqlExr. Use static function for that
 	 * @param int $objectType type of SqlExpr : FUNC|VALUE|FIELD
 	 * @param mixed $data source of SqlExpr, can be a scalar value or an array
@@ -328,15 +323,6 @@ class SqlExpr extends SqlBindField {
 	}
 
 	/**
-	 * {@inheritDoc}
-	 * @see \salt\SqlBindField::getBinds()
-	 */
-	public function getBinds() {
-		$this->toSQL(); // force binds addition
-		return parent::getBinds();
-	}
-
-	/**
 	 * Convert a SQL date to another format
 	 * @param string $origin origin date format
 	 * @param string $destination destination date format
@@ -379,11 +365,7 @@ class SqlExpr extends SqlBindField {
 	 * Change in objet after calling this method are ignored
 	 * @return string the SQL text for SqlExpr
 	 */
-	public function toSQL() {
-		if ($this->sqlText !== NULL) {
-			// without memoization, binds are added twice or more
-			return $this->sqlText;
-		}
+	protected function buildSQL() {
 
 		$s='';
 		$sArray = NULL;
@@ -432,7 +414,7 @@ class SqlExpr extends SqlBindField {
 				$params = array();
 				foreach($args as $p) {
 					$params[] = $p->toSQL();
-					$this->binds = array_merge($this->binds, $p->getBinds());
+					$this->linkBindsOf($p);
 				}
 				$s.=$funcName.'('.implode(', ', $params).')';
 			break;
@@ -492,7 +474,7 @@ class SqlExpr extends SqlBindField {
 			/** @var SqlExpr $arg */
 			foreach($args as $arg) {
 				$params[] = $arg->toSQL();
-				$this->binds = array_merge($this->binds, $arg->getBinds());
+				$this->linkBindsOf($arg);
 			}
 			if (count($template)-1 !== count($params)) {
 				throw new SaltException('Template '.implode(self::TEMPLATE_PARAM, $template).' contains '.(count($template)-1).
@@ -513,7 +495,6 @@ class SqlExpr extends SqlBindField {
 		if ($sArray !== NULL) {
 			$s = '('.implode(', ', $sArray).')';
 		}
-		$this->sqlText = $s;
-		return $this->sqlText;
+		return $s;
 	}
 }

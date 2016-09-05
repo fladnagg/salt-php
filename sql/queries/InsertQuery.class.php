@@ -66,7 +66,7 @@ class InsertQuery extends BaseQuery {
 			$sets = array();
 			foreach($this->fields as $f) {
 				$expr = SqlExpr::value($o->$f)->asSetter($this->obj->getField($f));
-				$sets[$f] = $this->resolveFieldName('INSERT', $expr);
+				$sets[$f] = $this->resolveFieldName(ClauseType::INSERT, $expr);
 				//$this->binds = array_merge($this->binds, $expr->getBinds()); // already done by resolveFieldName
 			}
 			$this->sets[] = $sets;
@@ -85,12 +85,9 @@ class InsertQuery extends BaseQuery {
 
 	/**
 	 * {@inheritDoc}
-	 *
-	 * @param Pagination $pagination not used here
-	 * @see BaseQuery::toSQL()
+	 * @see \salt\SqlBindField::buildSQL()
 	 */
-	public function toSQL(Pagination $pagination = NULL) {
-
+	protected function buildSQL() {
 		$sql='INSERT INTO '.$this->obj->getTableName();
 
 		$sql.=' ('.implode(', ', $this->fields).')';

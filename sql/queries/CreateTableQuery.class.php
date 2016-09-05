@@ -24,10 +24,9 @@ class CreateTableQuery extends Query {
 	 * {@inheritDoc}
 	 *
 	 * All tables are created as InnoDB
-	 * @param Pagination $pagination not used here
-	 * @see Query::toSQL()
+	 * @see salt\SqlBindField::buildSQL()
 	 */
-	public function toSQL(Pagination $pagination = NULL) {
+	protected function buildSQL() {
 		$fields = array();
 		/**
 		 * @var Field $field */

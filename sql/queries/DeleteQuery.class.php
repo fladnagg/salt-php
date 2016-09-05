@@ -60,16 +60,9 @@ class DeleteQuery extends UpdateQuery {
 
 	/**
 	 * {@inheritDoc}
-	 * @param Pagination $pagination not used here
-	 * @see \salt\UpdateQuery::toSQL()
+	 * @see salt\SqlBindField::buildSQL() 
 	 */
-	public function toSQL(Pagination $pagination = NULL) {
-		if ($this->sqlText !== NULL) {
-			// without memoization, a 2nd call will bind object ID twice.
-			// we cannot bind object id before because user can call allowMultipleUpdate()
-			return $this->sqlText;
-		}
-
+	protected function buildSQL() {
 		$sql='DELETE FROM '.$this->resolveTable();
 
 		if (!$this->allowMultiple) {
@@ -89,7 +82,6 @@ class DeleteQuery extends UpdateQuery {
 		$sql.=$this->buildWhereClause();
 		$sql.=$this->buildOrderClause();
 
-		$this->sqlText = $sql;
 		return $sql;
 	}
 }
