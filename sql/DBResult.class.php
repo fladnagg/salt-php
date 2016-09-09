@@ -21,14 +21,22 @@ class DBResult {
 	/**
 	 * Return all columns excepts specified ones
 	 * 
-	 * @param string ... $excludeColumns list of columns to NOT return
+	 * @param string[]|string ... $excludeColumns list of columns to NOT return
 	 * @return string[] list of columns excepts $excludeColumns ones
 	 */
 	public function columnsExcept($excludeColumns) {
 		$cols = array();
 
+		if (!is_array($excludeColumns)) {
+			if (func_num_args() === 1) {
+				$excludeColumns = array($excludeColumns);
+			} else {
+				$excludeColumns = func_get_args();
+			}
+		}
+		
 		foreach($this->columns as $col) {
-			if (!in_array($col, func_get_args())) {
+			if (!in_array($col, $excludeColumns)) {
 				$cols[]=$col;
 			}
 		}
