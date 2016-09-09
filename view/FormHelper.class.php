@@ -148,7 +148,9 @@ class FormHelper {
 		}
 
 		$newParams = self::parseParams($query, $params);
-		$action = $action.'?'.http_build_query($newParams);
+		if (count($newParams) > 0) {
+			$action = $action.'?'.http_build_query($newParams);
+		}
 
 		$others['action'] = $action;
 
