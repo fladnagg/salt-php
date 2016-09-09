@@ -475,6 +475,14 @@ abstract class Base extends Identifiable {
 
 		$this->_saltState = self::_SALT_STATE_DELETED;
 	}
+	
+	/**
+	 * Check if object is deleted
+	 * @return boolean TRUE if the object have been deleted
+	 */
+	public function isDeleted() {
+		return $this->_saltState === self::_SALT_STATE_DELETED;
+	}
 
 	/**
 	 * Make the object readonly. All changes will throw an exception.
