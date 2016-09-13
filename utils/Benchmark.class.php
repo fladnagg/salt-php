@@ -32,7 +32,9 @@ class Benchmark {
 		if (!isset(self::$times[$name])) {
 			self::resetTime($name);
 		}
-		self::$inProgress[$name]=microtime(TRUE);
+		if (!isset(self::$inProgress[$name])) {
+			self::$inProgress[$name]=microtime(TRUE);
+		}
 	}
 
 	/**
