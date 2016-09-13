@@ -213,19 +213,18 @@ abstract class Base extends Identifiable {
 	 * @param string[] $loadedFields fields loaded by a query for this object
 	 * @param string[] $extraFields fields to add to new instance only
 	 * @param boolean $loadAsNew if TRUE, the afterLoad() method set the state to NEW instead of LOADED
-	 * @throws SaltException if metadata() function don't return an array of Field
 	 */
 	private function initMetadata(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
 		$child = get_called_class();
 
 		if (!isset(self::$_saltMetadata[$child])) {
+			self::$_saltMetadata[$child]['fields']=array();
 			$meta = $this->metadata();
-			if (!is_array($meta) || (count($meta) == 0) || !(first($meta) instanceof Field)) {
-				throw new SaltException($child.'.metadata() have to return a Field array');
-			}
-			foreach($meta as $field) {
-				self::$_saltMetadata[$child]['fields'][$field->name] = $field;
-			}
+ 			if (is_array($meta) && (count($meta) > 0) && (first($meta) instanceof Field)) {
+				foreach($meta as $field) {
+					self::$_saltMetadata[$child]['fields'][$field->name] = $field;
+				}
+ 			}
 		}
 		if ($this->_saltState === self::_SALT_STATE_NONE) {
 			if (($loadedFields === NULL) || $loadAsNew) {
