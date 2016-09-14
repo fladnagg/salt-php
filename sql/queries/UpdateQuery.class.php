@@ -37,10 +37,11 @@ class UpdateQuery extends Query {
 
 		if ($fromQuery !== NULL) {
 			$this->alias = $fromQuery->alias;
-			$this->binds = $fromQuery->binds;
 			$this->joins = $fromQuery->joins;
 			$this->wheres = $fromQuery->wheres;
 			$this->orders = $fromQuery->orders;
+			
+			$this->linkBindsOf($fromQuery);
 		}
 
 		if (!$obj->isReadonly()) {
