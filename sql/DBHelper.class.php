@@ -72,8 +72,9 @@ class DBHelper {
 	 * @param string $pass password of user
 	 * @param string $charset charset of database
 	 * @throws SaltException if database already defined
+	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html
 	 */
-	public static function registerDefault($name, $host, $port, $db, $user, $pass, $charset = CHARSET) {
+	public static function registerDefault($name, $host, $port, $db, $user, $pass, $charset) {
 		if (self::$default !== NULL) {
 			throw new SaltException('Default DB already defined');
 		}
@@ -90,8 +91,9 @@ class DBHelper {
 	 * @param string $user user name
 	 * @param string $pass password of user
 	 * @param string $charset charset of database
+	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html
 	 */
-	public static function register($name, $host, $port, $db, $user, $pass, $charset = CHARSET) {
+	public static function register($name, $host, $port, $db, $user, $pass, $charset) {
 		self::$allDatas[$name] = new DBConnexion($host, $port, $db, $user, $pass, $charset);
 	}
 
@@ -542,7 +544,7 @@ class DBConnexion {
 			if ($password === NULL) {
 				$password = $this->pass;
 			}
-			$pdo = new PDO('mysql:host='.$this->host.';port='.$this->port.';dbname='.$this->db.';charset='.str_replace('-', '', $this->charset), // UTF8 instead of 'UTF-8'
+			$pdo = new PDO('mysql:host='.$this->host.';port='.$this->port.';dbname='.$this->db.';charset='.$this->charset,
 					$this->user, $password);
 			$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 		} catch (\Exception $ex) {
