@@ -178,17 +178,18 @@ class Salt {
 
 	/**
 	 * Compute a folder from a path and a relative path
-	 * @param string $origin a folder, with or without trailing /
-	 * @param string $relative relative folder
-	 * @return string the resolved path, always end with /
+	 * @param string $origin a folder, with or without trailing directory $separator
+	 * @param string $relative relative folder, with / separator
+	 * @param string $separator folder separator for $origin, default to /
+	 * @return string the resolved path, always end with $separator
 	 */
-	public static function computePath($origin, $relative) {
+	public static function computePath($origin, $relative, $separator = '/') {
 		$relative = explode('/', $relative);
 
-		if (substr($origin, -1) === '/') {
-			$origin = substr($origin, 0, -1);
+		if (substr($origin, -strlen($separator)) === $separator) {
+			$origin = substr($origin, 0, -strlen($separator));
 		}
-		$origin = explode('/', $origin);
+		$origin = explode($separator, $origin);
 		foreach($relative as $path) {
 			if (($path === '.') || ($path === '')) {
 				// do nothing
@@ -198,13 +199,13 @@ class Salt {
 				$origin[]=$path;
 			}
 		}
-		$result = implode('/', $origin);
+		$result = implode($separator, $origin);
 
 		if ($result==='') {
 			$result='.';
 		}
-		if (substr($result, -1) !== '/') {
-			$result.='/';
+		if (substr($result, -strlen($separator)) !== $separator) {
+			$result.=$separator;
 		}
 		return $result;
 	}
