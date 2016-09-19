@@ -28,6 +28,9 @@ class FormHelper {
 	/** Key for store value before formatting */
 	const PARAM_RAW_VALUE = '_saltRawValue';
 
+	/** Key for knowing value source */ 
+	const PARAM_FROM_INPUT = '_saltFromInput';
+	
 	/** Key for adding datepicker JS */
 	const PARAM_DATEPICKER = '_saltDatePicker';
 
@@ -367,7 +370,7 @@ class FormHelper {
 			}
 			$value = NULL; // value in parameters have more priority than GET/POST
 		}
-
+		
 		if (($type === 'text') && ($field->type === FieldType::DATE) && (self::$withJQueryUI)) {
 			$others[self::PARAM_DATEPICKER] = TRUE;
 		}
@@ -448,11 +451,14 @@ class FormHelper {
 		}
 		$attrs['name'] = self::getName($name);
 
+		$attrs[self::PARAM_FROM_INPUT] = FALSE;
+
 		if (($name !== NULL) && ($value === NULL)) {
 			$inputValue = self::getValue($name);
 			if ($inputValue !== NULL) {
 				// no transcode because value from last submit, so in same format
 				$attrs['value'] = $inputValue;
+				$attrs[self::PARAM_FROM_INPUT] = TRUE;
 			}
 		}
 
@@ -578,7 +584,7 @@ class FormHelper {
 		}
 
 		$rawValue = $value;
-		if (isset($attrs[self::PARAM_RAW_VALUE])) { // if PARAM_RAW_VALUE is null, don't set, finding an option always failed
+		if (isset($attrs[self::PARAM_RAW_VALUE]) && !$attrs[self::PARAM_FROM_INPUT]) { // if PARAM_RAW_VALUE is null, don't set, finding an option always failed
 			$rawValue = $attrs[self::PARAM_RAW_VALUE];
 		}
 
