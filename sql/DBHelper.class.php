@@ -71,15 +71,16 @@ class DBHelper {
 	 * @param string $user user name
 	 * @param string $pass password of user
 	 * @param string $charset charset of database
+	 * @param array $options PDO options array
 	 * @throws SaltException if database already defined
 	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html
 	 */
-	public static function registerDefault($name, $host, $port, $db, $user, $pass, $charset) {
+	public static function registerDefault($name, $host, $port, $db, $user, $pass, $charset, array $options = array()) {
 		if (self::$default !== NULL) {
 			throw new SaltException('Default DB already defined');
 		}
 		self::$default = $name;
-		self::register($name, $host, $port, $db, $user, $pass, $charset);
+		self::register($name, $host, $port, $db, $user, $pass, $charset, $options);
 	}
 
 	/**
@@ -91,10 +92,11 @@ class DBHelper {
 	 * @param string $user user name
 	 * @param string $pass password of user
 	 * @param string $charset charset of database
+	 * @param array $options PDO options array
 	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html
 	 */
-	public static function register($name, $host, $port, $db, $user, $pass, $charset) {
-		self::$allDatas[$name] = new DBConnexion($host, $port, $db, $user, $pass, $charset);
+	public static function register($name, $host, $port, $db, $user, $pass, $charset, array $options = array()) {
+		self::$allDatas[$name] = new DBConnexion($host, $port, $db, $user, $pass, $charset, $options);
 	}
 
 	/**
@@ -507,6 +509,8 @@ class DBConnexion {
 	private $pass;
 	/** @var string charset of database */
 	private $charset;
+	/** @var array PDO options array */
+	private $options;
 	/**
 	 * Create a DBConnexion
 	 * @param string $host Host name
@@ -515,14 +519,16 @@ class DBConnexion {
 	 * @param string $user user name
 	 * @param string $pass password
 	 * @param string $charset charset of database
+	 * @param array $options PDO options array
 	 */
-	public function __construct($host, $port, $db, $user, $pass, $charset) {
+	public function __construct($host, $port, $db, $user, $pass, $charset, $options) {
 		$this->host = $host;
 		$this->port = $port;
 		$this->db = $db;
 		$this->user = $user;
 		$this->pass = $pass;
 		$this->charset = $charset;
+		$this->options = $options;
 	}
 
 	/**
@@ -544,8 +550,17 @@ class DBConnexion {
 			if ($password === NULL) {
 				$password = $this->pass;
 			}
+			$options = $this->options;
+			if (version_compare(PHP_VERSION, '5.3.6') < 0) {
+				if (isset($options[PDO::MYSQL_ATTR_INIT_COMMAND])) {
+					$options[PDO::MYSQL_ATTR_INIT_COMMAND].=';';
+				} else {
+					$options[PDO::MYSQL_ATTR_INIT_COMMAND]='';
+				}
+				$options[PDO::MYSQL_ATTR_INIT_COMMAND].='SET NAMES '.$this->charset;
+			}
 			$pdo = new PDO('mysql:host='.$this->host.';port='.$this->port.';dbname='.$this->db.';charset='.$this->charset,
-					$this->user, $password);
+					$this->user, $password, $options);
 			$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 		} catch (\Exception $ex) {
 			error_reporting($oldErrorReporting);
