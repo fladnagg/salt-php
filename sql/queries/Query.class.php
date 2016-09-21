@@ -50,10 +50,6 @@ class Query extends BaseQuery {
 	protected $noAlias = FALSE;
 
 	/**
-	 * @var boolean TRUE if we force an empty result, without execute query */
-	protected $emptyResults = FALSE;
-
-	/**
 	 * Create a new SELECT query
 	 * @param Base $obj instance of object for query creation
 	 * @param boolean $withField TRUE for load all the fields
@@ -67,28 +63,6 @@ class Query extends BaseQuery {
 				$this->selectField($meta->name);
 			}
 		}
-	}
-
-	/**
-	 * Force the query to return empty results without execute.
-	 *
-	 * This can be used if the query contains an IN where condition with an empty array : Executing the query result in an exception,
-	 * but we can use this function for return an empty result without exception : <pre>
-	 *  $q->whereAnd('ids', 'IN', $values); // will produce a bad where clause : "ids IN ()" if $values is empty
-	 * 	if (count($values) === 0) $q->forceEmptyResults();
-	 * 	$db->execQuery($q); // valid, will not execute query, so not throw exception
-	 * </pre>
-	 */
-	public function forceEmptyResults() {
-		$this->emptyResults = TRUE;
-	}
-
-	/**
-	 * Check if forceEmptyResults() has been called
-	 * return boolean TRUE if we force an empty result
-	 */
-	public function isEmptyResults() {
-		return $this->emptyResults;
 	}
 
 	/**

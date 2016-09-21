@@ -13,6 +13,10 @@ namespace salt;
 abstract class BaseQuery extends SqlBindField {
 
 	/**
+	 * @var boolean FALSE for never execute the query */
+	protected $enabled = TRUE;
+	
+	/**
 	 * @var Base internal instance of object the query is build for */
 	protected $obj;
 
@@ -76,6 +80,31 @@ abstract class BaseQuery extends SqlBindField {
 			return $fieldNameOrValue;
 		}
 		return $this->alias.'.'.$fieldNameOrValue;
+	}
+	
+	/**
+	 * If parameter is empty, the query will not be executed
+	 * 
+	 * This can be used if the query contains an IN where condition with an empty array : Executing the query result in an exception,
+	 * but we can use this function for return an empty result without exception : <pre>
+	 *  $q->whereAnd('ids', 'IN', $values); // will produce a bad where clause : "ids IN ()" if $values is empty
+	 * 	$q->disabledIfEmpty($values);
+	 * 	$db->execQuery($q); // valid, will not execute query, so not throw exception
+	 * </pre>
+	 * @param mixed $list
+	 */
+	public function disableIfEmpty($list) {
+		if (!is_array($list) || (count($list) === 0)) {
+			$this->enabled = FALSE;
+		}
+	}
+	
+	/**
+	 * Check if we have to execute the query
+	 * @return boolean TRUE if the query can be executed, FALSE otherwise
+	 */
+	public function isEnabled() {
+		return $this->enabled;
 	}
 
 }

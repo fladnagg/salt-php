@@ -143,8 +143,11 @@ class DBHelper {
 	 */
 	public function execCountQuery(Query $query) {
 		$st = $this->exec($query, TRUE);
-		$count = $st->fetchColumn(0);
-		return intval($count);
+		if ($st !== NULL) {
+			$count = $st->fetchColumn(0);
+			return intval($count);
+		}
+		return NULL;
 	}
 
 	/**
@@ -159,33 +162,34 @@ class DBHelper {
 	public function execQuery(Query $query, Pagination $pagination = NULL, Base $bindingObject = NULL) {
 
 		$count = NULL;
-		if (($pagination != NULL) && !$pagination->isLocked() && !$query->isEmptyResults()) {
+		if (($pagination != NULL) && !$pagination->isLocked()) {
 			$count = $this->execCountQuery($query);
 		}
 		$r = $query->initResults($pagination, $count);
 
-		if (!$query->isEmptyResults() && ($count !== 0)) {
-
+		if ($count !== 0) {
 			$st = $this->exec($query, false, $pagination);
 
-			$fields = $query->getSelectFields();
-			$binding = $query->getBindingClass();
-
-			if ($bindingObject !== NULL) {
-				$binding = get_class($bindingObject);
-				//$fields = NULL;
-			}
-
-			try {
-				$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $binding, array($fields, NULL, ($bindingObject !== NULL)));
-			} catch (\PDOException $ex) {
-				throw new DBException('Error in populate object during fetch from the query ', $query->toSQL($pagination), $ex);
-			} catch (\Exception $ex) {
-				throw new SaltException('Error in populate object during fetch from the query '.$query->toSQL($pagination), $ex->getCode(), $ex);
-			}
-
-			foreach($r->data as $object) {
-				$object->afterLoad();
+			if ($st !== NULL) {
+				$fields = $query->getSelectFields();
+				$binding = $query->getBindingClass();
+	
+				if ($bindingObject !== NULL) {
+					$binding = get_class($bindingObject);
+					//$fields = NULL;
+				}
+	
+				try {
+					$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $binding, array($fields, NULL, ($bindingObject !== NULL)));
+				} catch (\PDOException $ex) {
+					throw new DBException('Error in populate object during fetch from the query ', $query->toSQL($pagination), $ex);
+				} catch (\Exception $ex) {
+					throw new SaltException('Error in populate object during fetch from the query '.$query->toSQL($pagination), $ex->getCode(), $ex);
+				}
+	
+				foreach($r->data as $object) {
+					$object->afterLoad();
+				}
 			}
 		}
 
@@ -202,8 +206,12 @@ class DBHelper {
 	 * @throws SaltException if something else failed
 	 */
 	private function exec(BaseQuery $query, $count = FALSE, Pagination $pagination = NULL) {
+		if (!$query->isEnabled())  {
+			return NULL;
+		}
+		
 		Benchmark::increment('salt.queries');
-
+		
 		if ($count) {
 			$query = $query->toCountQuery();
 		}
@@ -346,14 +354,17 @@ class DBHelper {
 	public function execInsert(InsertQuery $query) {
 		$st = $this->exec($query);
 
-		$expected = $query->getInsertObjectCount();
-
-		$changedRows = $st->rowCount();
-		if ($expected !== $changedRows) {
-			throw new RowCountException('Query have inserted '.$changedRows.' rows instead of expected '.$expected.'.',
-					$query->toSQL(), $changedRows, $expected);
+		if ($st !== NULL) {
+			$expected = $query->getInsertObjectCount();
+	
+			$changedRows = $st->rowCount();
+			if ($expected !== $changedRows) {
+				throw new RowCountException('Query have inserted '.$changedRows.' rows instead of expected '.$expected.'.',
+						$query->toSQL(), $changedRows, $expected);
+			}
+			return $this->base->lastInsertId();
 		}
-		return $this->base->lastInsertId();
+		return NULL;
 	}
 
 	/**
@@ -366,19 +377,23 @@ class DBHelper {
 	public function execDelete(DeleteQuery $query, $expected = -1) {
 		$st = $this->exec($query);
 
-		if ($query->isSimpleQuery() && ($expected < 0)) {
-			$expected = $query->getDeletedObjectCount();
+		$changedRows = 0;
+		if ($st !== NULL) {
+			if ($query->isSimpleQuery() && ($expected < 0)) {
+				$expected = $query->getDeletedObjectCount();
+			}
+	
+			if ($expected <= 0) {
+				$expected = NULL;
+			}
+	
+			$changedRows = $st->rowCount();
+			if (($expected !== NULL) && ($expected !== $changedRows)) {
+				throw new RowCountException('Query have deleted '.$changedRows.' rows instead of expected '.$expected.'.',
+						$query->toSQL(), $changedRows, $expected);
+			}
 		}
-
-		if ($expected <= 0) {
-			$expected = NULL;
-		}
-
-		$changedRows = $st->rowCount();
-		if (($expected !== NULL) && ($expected !== $changedRows)) {
-			throw new RowCountException('Query have deleted '.$changedRows.' rows instead of expected '.$expected.'.',
-					$query->toSQL(), $changedRows, $expected);
-		}
+		
 		return $changedRows;
 	}
 
@@ -391,18 +406,21 @@ class DBHelper {
 	public function execUpdate(UpdateQuery $query, $expected = -1) {
 		$st = $this->exec($query);
 
-		if ($query->isSimpleQuery() && ($expected < 0)) {
-			$expected = 1;
-		}
-
-		if ($expected <= 0) {
-			$expected = NULL;
-		}
-
-		$changedRows = $st->rowCount();
-		if (($expected !== NULL) && ($expected !== $changedRows)) {
-			throw new RowCountException('Query have modified '.$changedRows.' rows instead of expected '.$expected.'.',
-					$query->toSQL(), $changedRows, $expected);
+		$changedRows = 0;
+		if ($st !== NULL) {
+			if ($query->isSimpleQuery() && ($expected < 0)) {
+				$expected = 1;
+			}
+	
+			if ($expected <= 0) {
+				$expected = NULL;
+			}
+	
+			$changedRows = $st->rowCount();
+			if (($expected !== NULL) && ($expected !== $changedRows)) {
+				throw new RowCountException('Query have modified '.$changedRows.' rows instead of expected '.$expected.'.',
+						$query->toSQL(), $changedRows, $expected);
+			}
 		}
 		return $changedRows;
 	}
