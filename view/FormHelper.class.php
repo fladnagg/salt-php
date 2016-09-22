@@ -44,7 +44,9 @@ class FormHelper {
 	private static $method = NULL;
 	/** @var boolean TRUE if we can use JQueryUI decoration on form tags */
 	private static $withJQueryUI = TRUE;
-
+	/** @var string[] List of javascript code to add before closing form */
+	private static $javascriptCodes = array();
+	
 	/**
 	 * Enable or disable usage of JQueryUI
 	 * @param boolean $value TRUE (default) for enable JQueryUI, false for disable
@@ -69,6 +71,7 @@ class FormHelper {
 	public static function get($action = NULL, $params = array(), $others = array()) {
 		$Input = In::getInstance();
 		self::$method = 'G';
+		self::$javascriptCodes = array();
 
 		if ($params === NULL) {
 			$params = array();
@@ -127,6 +130,7 @@ class FormHelper {
 	public static function post($action = NULL, $params = array(), $others = array()) {
 		$Input = In::getInstance();
 		self::$method = 'P';
+		self::$javascriptCodes = array();
 
 		if ($params === NULL) {
 			$params = array();
@@ -193,7 +197,18 @@ class FormHelper {
 	 */
 	public static function end() {
 		self::$method = NULL;
-		return self::HTMLtag('form', array(), NULL, self::TAG_CLOSE);
+		
+		$result='';
+		if (count(self::$javascriptCodes) > 0) {
+			$result.='<script type="text/javascript">';
+			$result.=implode("\n\n", self::$javascriptCodes);
+			$result.='</script>';
+		}
+		
+		self::$javascriptCodes = array();
+		
+		$result.=self::HTMLtag('form', array(), NULL, self::TAG_CLOSE);
+		return $result;
 	}
 
 	/**
@@ -604,5 +619,14 @@ class FormHelper {
 		}
 
 		return self::HTMLtag('select', $attrs, $content);
+	}
+	
+	/**
+	 * Register a javascript bloc to add before closing form
+	 * @param string $key The key to use for append code : every previous code registered with this key is replaced
+	 * @param string $jsCode The javascript code 
+	 */
+	public static function registerJavascript($key, $jsCode) {
+		self::$javascriptCodes[$key] = $jsCode;
 	}
 }
