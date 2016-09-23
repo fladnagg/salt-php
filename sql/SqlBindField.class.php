@@ -56,6 +56,10 @@ abstract class SqlBindField {
 		
 		$bind = ':v'.(self::$bindNumber++);
 
+		if ($type === NULL) {
+			$type = FieldType::guessType($value);
+		}
+		
 		$this->binds[$bind]=array(
 				'value' => $value,
 				'type' => $type);

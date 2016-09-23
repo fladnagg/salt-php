@@ -401,7 +401,7 @@ class Query extends BaseQuery {
 			throw new SaltException('A join with the same alias ['.$other->alias.'] already exists.');
 		}
 
-		$join=array(
+		$this->joins[$other->alias]=array(
 			'meta'=>$other->obj->getFieldsMetadata(),
 			'type'=>strtoupper($type),
 			'table'=>$table,
@@ -416,9 +416,7 @@ class Query extends BaseQuery {
 		}
 		$clause = $absoluteField.' '.$operator.' '.$valueOrExpr;
 
-		$join['on'][]=$clause;
-
-		$this->joins[$other->alias] = $join;
+		$this->addJoinOnClause($other, 'AND', $clause);
 
 		if ($withOtherDatas) {
 			// Merge of others parameters
@@ -427,7 +425,8 @@ class Query extends BaseQuery {
 				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::SELECT);
 			}
 			if (count($other->wheres) > 0) {
-				$this->addWhereClause('AND', $other->wheres);
+				//$this->addWhereClause('AND', $other->wheres);
+				$this->addJoinOnClause($other, 'AND', $other->wheres);
 				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::WHERE);
 			}
 			if (count($other->groups) > 0) {
@@ -493,10 +492,28 @@ class Query extends BaseQuery {
 	 * @param Query $whereQuery the query to add in ON clause
 	 */
 	private function addJoinOnQuery($type, Query $other, Query $whereQuery) {
-		$this->joins[$other->alias]['on'][]=' '.$type.' ('.implode(' ', $whereQuery->wheres).')';
+		//$this->joins[$other->alias]['on'][]=' '.$type.' ('.implode(' ', $whereQuery->wheres).')';
+		$this->addJoinOnClause($other, $type, '('.implode(' ',$whereQuery->wheres).')');
 		$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::WHERE);
 	}
 
+	/**
+	 * Add a ON clause from SQL text
+	 * @param Query $other the other query for retrieve the join clause
+	 * @param string $type type of ON clause : AND|OR
+	 * @param string $onClause ON clause
+	 */
+	private function addJoinOnClause($other, $type, $onClause) {
+		if (is_array($onClause)) {
+			$onClause=implode(' ', $onClause);
+		}
+		if (count($this->joins[$other->alias]['on'])>0) {
+			$this->joins[$other->alias]['on'][]=$type.' '.$onClause;
+		} else {
+			$this->joins[$other->alias]['on'][]=$onClause;
+		}
+	}
+	
 	/**
 	 * add an ON clause to an existing join
 	 * @param string $type AND|OR
@@ -519,7 +536,8 @@ class Query extends BaseQuery {
 		}
 		$clause = $absoluteField.' '.$operator.' '.$valueOrExpr;
 
-		$this->joins[$other->alias]['on'][]=' '.$type.' '.$clause;
+		$this->addJoinOnClause($other, $type, $clause);
+// 		$this->joins[$other->alias]['on'][]=' '.$type.' '.$clause;
 	}
 
 	/**

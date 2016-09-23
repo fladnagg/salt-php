@@ -384,18 +384,7 @@ class SqlExpr extends SqlBindField {
 					$this->type = NULL;
 				} else {
 					if ($this->type === NULL) {
-						if (is_array($this->data) && (count($this->data) > 0)) {
-							$v = first($this->data);
-						} else {
-							$v = $this->data;
-						}
-						if (is_bool($v)) {
-							$this->type = FieldType::BOOLEAN;
-						} else if (is_numeric($v)) {
-							$this->type = FieldType::NUMBER;
-						} else {
-							$this->type = FieldType::TEXT;
-						}
+						$this->type = FieldType::guessType($this->data);
 					}
 					if (is_array($this->data)) {
 						$sArray = array();
@@ -412,6 +401,7 @@ class SqlExpr extends SqlBindField {
 				$args = $this->data;
 				$funcName = array_shift($args);
 				$params = array();
+				/** @var SqlExpr $p */
 				foreach($args as $p) {
 					$params[] = $p->toSQL();
 					$this->linkBindsOf($p);
