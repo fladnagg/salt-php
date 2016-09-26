@@ -89,10 +89,10 @@ class BaseViewHelper extends Identifiable implements ViewHelper {
 		if ($field->type === FieldType::DATE) {
 
 			if ($format === NULL) {
-				$format = $params['format'];
+				$format = $params[ViewHelper::FORMAT_KEY];
 			}
-			if (($format === NULL) && array_key_exists('format', $field->displayOptions)) { // can be NULL, array_key_exists required
-				$format = $field->displayOptions['format'];
+			if (($format === NULL) && array_key_exists(ViewHelper::FORMAT_KEY, $field->displayOptions)) { // can be NULL, array_key_exists required
+				$format = $field->displayOptions[ViewHelper::FORMAT_KEY];
 			}
 			if ($format === NULL) {
 				$format = $field->displayFormat;
@@ -157,7 +157,7 @@ class BaseViewHelper extends Identifiable implements ViewHelper {
 		}
 
 		if ($format !== NULL) {
-			$params['format'] = $format;
+			$params[ViewHelper::FORMAT_KEY] = $format;
 		}
 
 		//$params['value'] = $this->show($object, $field, $value, $format, $params);

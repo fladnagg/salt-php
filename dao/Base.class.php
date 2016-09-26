@@ -132,7 +132,11 @@ abstract class Base extends Identifiable {
 	 * @return string the table name
 	 */
 	public function getTableName() {
-		return self::$_saltMetadata[get_called_class()]['tablename'];
+		$table = self::$_saltMetadata[get_called_class()]['tablename'];
+		if (strtolower($table) !== 'dual') { // special value
+			$table = SqlBindField::escapeName($table);
+		}
+		return $table;
 	}
 
 	/**
@@ -603,8 +607,8 @@ class _InternalFieldAccess {
 			$format = self::$_saltFormat;
 		} else {
 			$params = self::$_saltFormat;
-			if (isset($params['format'])) {
-				$format = $params['format'];
+			if (isset($params[ViewHelper::FORMAT_KEY])) {
+				$format = $params[ViewHelper::FORMAT_KEY];
 			}
 		}
 

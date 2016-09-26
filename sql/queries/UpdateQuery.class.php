@@ -124,7 +124,7 @@ class UpdateQuery extends Query {
 
 		$allSets=array();
 		foreach($this->sets as $field => $value) {
-			$allSets[]=$field.' = '.$value;
+			$allSets[]=self::escapeName($field).' = '.$value;
 		}
 		$sql.=' SET '.implode(', ', $allSets);
 

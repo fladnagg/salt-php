@@ -15,6 +15,7 @@ interface ViewHelper {
 	/**
 	 * Raw format */
 	const RAW='raw';
+	const FORMAT_KEY='format';
 
 	/**
 	 * Return a text for a column

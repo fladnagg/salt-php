@@ -31,7 +31,7 @@ class CreateTableQuery extends Query {
 		/**
 		 * @var Field $field */
 		foreach($this->obj->getFieldsMetadata() as $field) {
-			$f=$field->name;
+			$f=$this->escapeName($field->name);
 			$f.=' '.self::getSqlTypeForField($field);
 			if (!$field->nullable) {
 				$f.=' NOT NULL';

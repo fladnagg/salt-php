@@ -7,8 +7,6 @@
  */
 namespace salt;
 
-use \Exception;
-
 /**
  * SELECT Query
  */
@@ -306,7 +304,7 @@ class Query extends BaseQuery {
 		foreach($this->fields as $select) {
 			list($expr, $aliasName) = $select;
 			if ($alias === $aliasName) {
-				return SqlExpr::text($alias);
+				return SqlExpr::text(self::escapeName($alias));
 			}
 		}
 		throw new SaltException('Cannot find the alias ['.$alias.'] in the query');
@@ -685,7 +683,7 @@ class Query extends BaseQuery {
 			/** @var SqlExpr $expr */
 			list($expr, $alias) = $data;
 
-			$fields[]=$expr->toSQL().' as '.$alias;
+			$fields[]=$expr->toSQL().' as '.self::escapeName($alias);
 			$this->linkBindsOf($expr, ClauseType::SELECT);
 		}
 		$sql.=implode(', ', $fields);

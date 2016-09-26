@@ -77,7 +77,7 @@ abstract class BaseQuery extends SqlBindField {
 			}
 		}
 		if ($this->noAlias) {
-			return $fieldNameOrValue;
+			return self::escapeName($fieldNameOrValue);
 		}
 		return $this->alias.'.'.$fieldNameOrValue;
 	}
@@ -106,5 +106,4 @@ abstract class BaseQuery extends SqlBindField {
 	public function isEnabled() {
 		return $this->enabled;
 	}
-
 }

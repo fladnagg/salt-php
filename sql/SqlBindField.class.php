@@ -191,6 +191,15 @@ abstract class SqlBindField {
 	}
 
 	/**
+	 * Escape a name for SQL use with backquote
+	 * @param string $name a SQL name : database, table, field, alias, etc... 
+	 * @return string SQL escaped text with backquote.
+	 */
+	public static function escapeName($name) {
+		return '`'.$name.'`';
+	}
+	
+	/**
 	 * Build the SQL text that using the binds
 	 * @return string the SQL text
 	 */

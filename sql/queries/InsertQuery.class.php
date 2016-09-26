@@ -90,7 +90,7 @@ class InsertQuery extends BaseQuery {
 	protected function buildSQL() {
 		$sql='INSERT INTO '.$this->obj->getTableName();
 
-		$sql.=' ('.implode(', ', $this->fields).')';
+		$sql.=' (`'.implode('`, `', $this->fields).'`)';
 
 		$allValues = array();
 		/**

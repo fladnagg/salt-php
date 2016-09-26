@@ -349,8 +349,8 @@ class FormHelper {
 		if (!array_key_exists('name', $others)) { // value can be NULL, array_key_exists required
 			$others['name'] = $field->name;
 		}
-		if (!array_key_exists('format', $others)) { // value can be NULL, array_key_exists required
-			$others['format'] = $field->displayFormat;
+		if (!array_key_exists(ViewHelper::FORMAT_KEY, $others)) { // value can be NULL, array_key_exists required
+			$others[ViewHelper::FORMAT_KEY] = $field->displayFormat;
 		}
 
 		// type guess
@@ -381,7 +381,7 @@ class FormHelper {
 		if ($helper !== NULL) {
 			$others[self::PARAM_RAW_VALUE] = $value;
 			if ($value !== NULL) {
-				$others['value'] = $helper->text($helper->getObject(), $field, $value, $others['format'], array());
+				$others['value'] = $helper->text($helper->getObject(), $field, $value, $others[ViewHelper::FORMAT_KEY], array());
 			}
 			$value = NULL; // value in parameters have more priority than GET/POST
 		}
@@ -409,7 +409,7 @@ class FormHelper {
 
 		// remove internal keys which are not HTML attributes
 		unset($others['options']);
-		unset($others['format']);
+		unset($others[ViewHelper::FORMAT_KEY]);
 
 		$result=NULL;
 		switch($type) {
