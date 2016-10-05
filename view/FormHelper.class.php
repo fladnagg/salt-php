@@ -578,7 +578,7 @@ class FormHelper {
 	/**
 	 * Return a select HTML tag
 	 * @param string $name name of the tag
-	 * @param string $options all possible values key=>value
+	 * @param mixed[] $options all possible values key=>value or key=>array('value' => displayValue, 'attr' => attrValue, ...)
 	 * @param string $value value of the tag
 	 * @param string[] $classes CSS classes of the tag
 	 * @param mixed[] $others all other attributes for the tag
@@ -602,10 +602,14 @@ class FormHelper {
 		if (isset($attrs[self::PARAM_RAW_VALUE]) && !$attrs[self::PARAM_FROM_INPUT]) { // if PARAM_RAW_VALUE is null, don't set, finding an option always failed
 			$rawValue = $attrs[self::PARAM_RAW_VALUE];
 		}
-
 		$content = '';
 		foreach($options as $k=>$v) {
-			$optAttrs = array('value' => $k);
+			$optAttrs = array();
+			if (is_array($v)) {
+				$optAttrs = $v;
+				$v = $optAttrs['value'];
+			}
+			$optAttrs['value'] = $k;
 
 			if (strval($rawValue) === strval($k)) { // always string values
 				$optAttrs['selected'] = 'selected';
