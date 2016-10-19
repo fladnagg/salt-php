@@ -60,11 +60,19 @@ class Pagination {
 	}
 
 	/**
+	 * Return TRUE if setCount() is not called with value greater than or equal 0
+	 * @return boolean TRUE if the Pagination object is not used
+	 */
+	public function isEmpty() {
+		return ($this->count === -1);
+	}
+	
+	/**
 	 * Return the total size of elements
 	 * @return int total size of elements
 	 */
 	public function getCount() {
-		return $this->count;
+		return max(0, $this->count);
 	}
 
 	/**

@@ -556,10 +556,10 @@ class Query extends BaseQuery {
 	 * @param string $count total number of elements. Set on pagination
 	 * @return DBResult with selected columns populated
 	 */
-	public function initResults(Pagination $pagination = NULL, $count = null) {
+	public function initResults(Pagination $pagination = NULL, $count = NULL) {
 		$r = new DBResult();
 
-		if ($pagination != null) {
+		if (($pagination != NULL) && ($count !== NULL)) {
 			$pagination->setCount($count);
 		}
 		$r->columns = $this->getSelectFields();
