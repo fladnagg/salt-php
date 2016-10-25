@@ -280,7 +280,7 @@ class FormHelper {
 		}
 		$result='<'.$tagName;
 		foreach($attributes as $k=>$v) {
-			if (($v !== NULL) && (strpos($k, '_') !== 0)) {
+			if (($v !== NULL) && (strpos($k, '_') !== 0) && !is_array($v)) {
 				$result.=' '.$Input->HTML($k).'="'.$Input->HTML($v).'"';
 			}
 		}
@@ -576,16 +576,68 @@ class FormHelper {
 	}
 
 	/**
+	 * Build options tag of a select input
+	 * @param mixed[] $options all possible values in one of theses formats :<ul>
+	 * 		<li>key=>value</li>
+	 * 		<li>key=>array('value' => displayValue, 'attr' => attrValue, ...)</li>
+	 * 		<li>group_label=>array('group' => array(key=>value))</li>
+	 * 		<li>group_label=>array('group' => array(key=>array('value' => displayValue, 'attr' => attrValue, ...)))</li></ul>
+	 * @param mixed $selected selected value(s)
+	 * @return string HTML text for $options
+	 */
+	private static function buildSelectOptions(array $options, $selected) {
+		$Input = In::getInstance();
+		$content = '';
+		
+		if (!is_array($selected)) {
+			$selected = array($selected);
+		}
+		$selected = array_map('strval', $selected);
+		
+		foreach($options as $k=>$v) {
+			$optAttrs = array();
+			if (is_array($v)) {
+				if (!isset($v['group'])) {
+					$optAttrs = $v;
+					$v = $optAttrs['value'];
+				} else {
+					$groupOptions = self::buildSelectOptions($v['group'], $selected);
+					unset($v['group']);
+					$v['label']=$k;
+					$content.= self::HTMLtag('optgroup', $v, $groupOptions);
+					continue;
+				}
+			}
+			$optAttrs['value'] = $k;
+		
+			if (in_array(strval($k), $selected)) { // always string values
+				$optAttrs['selected'] = 'selected';
+			}
+			if (strlen(trim($v)) === 0) {
+				$v = '&nbsp;';
+			} else {
+				$v = $Input->HTML($v);
+			}
+			$content.=self::HTMLtag('option', $optAttrs, $v);
+		}
+		return $content;
+	}
+	
+	
+	/**
 	 * Return a select HTML tag
 	 * @param string $name name of the tag
-	 * @param mixed[] $options all possible values key=>value or key=>array('value' => displayValue, 'attr' => attrValue, ...)
+	 * @param mixed[] $options all possible values in one of theses formats :<ul>
+	 * 		<li>key=>value</li>
+	 * 		<li>key=>array('value' => displayValue, 'attr' => attrValue, ...)</li>
+	 * 		<li>group_label=>array('group' => array(key=>value))</li>
+	 * 		<li>group_label=>array('group' => array(key=>array('value' => displayValue, 'attr' => attrValue, ...)))</li></ul>
 	 * @param string $value value of the tag
 	 * @param string[] $classes CSS classes of the tag
 	 * @param mixed[] $others all other attributes for the tag
 	 * @return string HTML text tag
 	 */
 	public static function select($name, array $options, $value = NULL, $classes = array(), array $others = array()) {
-		$Input = In::getInstance();
 
 		$attrs = self::commonTagAttributes($name, $value, $classes, $others);
 
@@ -602,25 +654,7 @@ class FormHelper {
 		if (isset($attrs[self::PARAM_RAW_VALUE]) && !$attrs[self::PARAM_FROM_INPUT]) { // if PARAM_RAW_VALUE is null, don't set, finding an option always failed
 			$rawValue = $attrs[self::PARAM_RAW_VALUE];
 		}
-		$content = '';
-		foreach($options as $k=>$v) {
-			$optAttrs = array();
-			if (is_array($v)) {
-				$optAttrs = $v;
-				$v = $optAttrs['value'];
-			}
-			$optAttrs['value'] = $k;
-
-			if (strval($rawValue) === strval($k)) { // always string values
-				$optAttrs['selected'] = 'selected';
-			}
-			if (strlen(trim($v)) === 0) {
-				$v = '&nbsp;';
-			} else {
-				$v = $Input->HTML($v);
-			}
-			$content.=self::HTMLtag('option', $optAttrs, $v);
-		}
+		$content = self::buildSelectOptions($options, $rawValue);
 
 		return self::HTMLtag('select', $attrs, $content);
 	}
