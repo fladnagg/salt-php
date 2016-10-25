@@ -280,20 +280,36 @@ class DBHelper {
 	 * Execute a query from a SQL text
 	 * @param string $sql sql text
 	 * @param array $binds array of placeholder (key => value). If we want to set the type for bind a value, we can suffix the key by @
-	 * 			followed by a PDO_PARAM_* constant<br/>For example : Par exemple, array(':param@'.PDO::PARAM_INT => 3)
-	 * @return \PDOStatement \PDOStatement after query execution
+	 * 			followed by a PDO_PARAM_* constant<br/>For example : Par exemple, array(':param@'.PDO::PARAM_INT => 3)<br/>
+	 * 			value can also be an array with two keys for compatibily with classic queries : array('value' => value, 'type' => FieldType)
+	 * @return \PDOStatement PDOStatement after query execution
 	 */
 	public function execSQL($sql, array $binds = array()) {
 		Benchmark::increment('salt.queries');
 
 		Benchmark::start('salt.prepare');
+		$debugBinds = array();
 		$st = $this->base->prepare($sql);
 		foreach($binds as $k => $v) {
 			$type = NULL;
-			@list($param, $type) = explode('@', $k, 2);
-			if ($type !== NULL) {
-				$type = intval($type);
+			if (is_array($v) && isset($v['value']) && isset($v['type'])) {
+				switch($v['type']) {
+					case FieldType::NUMBER: $type = PDO::PARAM_INT;
+					break;
+					case FieldType::BOOLEAN : $type = PDO::PARAM_BOOL;
+					break;
+					case FieldType::DATE : $type = PDO::PARAM_INT;
+					break;
+				}
+				$param = $k;
+				$v = $v['value'];
+			} else {
+				@list($param, $type) = explode('@', $k, 2);
+				if ($type !== NULL) {
+					$type = intval($type);
+				}
 			}
+			$debugBinds[$param] = array('value' => $v, 'type' => ($type === PDO::PARAM_INT)?FieldType::NUMBER:FieldType::TEXT);
 			$st->bindValue($param, $v, $type);
 		}
 		$time = Benchmark::end('salt.prepare');
@@ -305,13 +321,12 @@ class DBHelper {
 			$time = Benchmark::end('salt.query');
 			Benchmark::addTime('salt.queries-exec', $time);
 
-			// parameters format is unknown for manual made queries
-			//$this->addDebugData($sql, array(), round($time, BENCH_PRECISION));
+			$this->addDebugData($sql, $debugBinds, round($time, BENCH_PRECISION));
 		} catch (\PDOException $ex) {
-			//$this->addDebugData($sql, array(), NULL);
+			$this->addDebugData($sql, $debugBinds, NULL);
 			throw new DBException($ex->getMessage(), $sql, $ex);
 		} catch (\Exception $ex) {
-			//$this->addDebugData($sql, array(), NULL);
+			$this->addDebugData($sql, $debugBinds, NULL);
 			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 
