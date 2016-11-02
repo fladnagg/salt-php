@@ -22,7 +22,7 @@ class DatabaseHelper {
 		$allTables = array();
 		foreach($classNames as $class) {
 			$obj = $class::meta();
-			$allTables[$obj->getTableName()] = $obj;
+			$allTables[$obj->getTableName(FALSE)] = $obj;
 		}
 
 		$tableNames = InformationSchemaTables::missingTables($db, array_keys($allTables));

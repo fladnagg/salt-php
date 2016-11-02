@@ -129,11 +129,12 @@ abstract class Base extends Identifiable {
 
 	/**
 	 * Return the tablename registered with ::registerTableName()
+	 * @param boolean $withEscape (Optional, TRUE) FALSE for do not escape table name with backquotes
 	 * @return string the table name
 	 */
-	public function getTableName() {
+	public function getTableName($withEscape = TRUE) {
 		$table = self::$_saltMetadata[get_called_class()]['tablename'];
-		if (strtolower($table) !== 'dual') { // special value
+		if ((strtolower($table) !== 'dual') && (strpos($table, '.') === FALSE) && $withEscape) { // special value
 			$table = SqlBindField::escapeName($table);
 		}
 		return $table;
