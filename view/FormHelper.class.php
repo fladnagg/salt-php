@@ -320,6 +320,28 @@ class FormHelper {
 		}
 		return NULL;
 	}
+	
+	/**
+	 * Replace value from previously submitted form
+	 * @param string $name name of input (simple name, not the return of self::getName() !)
+	 * @param mixed $value value to set 
+	 * @throws SaltException if called outside a form
+	 */
+	public static function setValue($name, $value) {
+		if (self::$values !== NULL) {
+			if (array_key_exists($name, self::$values)) {
+				self::$values[$name] = $value;
+			}
+		} else {
+			$Input = In::getInstance();
+			if (self::$method === NULL) {
+				throw new SaltException('Please call FormHelper::get() or FormHelper::post() before');
+			}
+			if ($Input->{self::$method}->ISSET->$name) {
+				$Input->{self::$method}->SET->$name = $value;
+			}
+		}
+	}
 
 	/**
 	 * Get a HTML tag for modify a field
@@ -413,6 +435,8 @@ class FormHelper {
 
 		$result=NULL;
 		switch($type) {
+			case 'hidden' :	$result = self::input($name, 'hidden', $value, $classes, $others);
+			break;
 			case 'text' :	$result = self::input($name, 'text', $value, $classes, $others);
 			break;
 			case 'password' :	$result = self::input($name, 'password', $value, $classes, $others);
@@ -547,6 +571,7 @@ class FormHelper {
 			// [] in JS have to be double-escaped with \, so, we have to generate : a\\[b\\]\\[c\\]
 			// for each \, we have to write 4 \ in preg_replace (2 for PHP parser, 2 for PCRE parser)
 			// so, total is 8 \
+			// FIXME : Replace with name="..." without escape...
 			$tag.='<script type="text/javascript">
 					$(function() {
 						$("input[name='.preg_replace('#([\[\]])#', '\\\\\\\\$1', $Input->HTML($attrs['name'])).']").datepicker();
