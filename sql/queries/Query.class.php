@@ -46,7 +46,7 @@ class Query extends BaseQuery {
 	/**
 	 * @var boolean TRUE if table name does not have to use alias (DELETE query) */
 	protected $noAlias = FALSE;
-
+	
 	/**
 	 * Create a new SELECT query
 	 * @param Base $obj instance of object for query creation
@@ -54,7 +54,12 @@ class Query extends BaseQuery {
 	 */
 	public function __construct(Base $obj, $withField=FALSE) {
 		parent::__construct($obj);
-		$this->alias = 't'.self::$tableAliasNumber++;
+		
+		if ($obj instanceof Dual) {
+			$this->noAlias = TRUE;
+		} else {
+			$this->alias = 't'.self::$tableAliasNumber++;
+		}
 
 		if ($withField) {
 			foreach($obj->getFieldsMetadata() as $meta) {
@@ -63,6 +68,7 @@ class Query extends BaseQuery {
 		}
 	}
 
+	
 	/**
 	 * Get a sub query of this query
 	 * @return Query a query on the same table with the same alias for using in whereAndQuery or whereOrQuery

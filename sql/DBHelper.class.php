@@ -309,7 +309,7 @@ class DBHelper {
 					$type = intval($type);
 				}
 			}
-			$debugBinds[$param] = array('value' => $v, 'type' => ($type === PDO::PARAM_INT)?FieldType::NUMBER:FieldType::TEXT);
+			$debugBinds[$param] = array('value' => $v, 'type' => ($type === PDO::PARAM_INT)?FieldType::NUMBER:FieldType::TEXT, 'private' => FALSE);
 			$st->bindValue($param, $v, $type);
 		}
 		$time = Benchmark::end('salt.prepare');
@@ -345,10 +345,14 @@ class DBHelper {
 		$sqlValues = preg_replace_callback('(:[vL][0-9]+)', function($bind) use(&$binds) {
 			if (isset($binds[$bind[0]])) {
 				$b = $binds[$bind[0]];
-				$v = $b['value'];
-				if ($b['type'] === FieldType::TEXT) $v = '\''.$v.'\'';
-				if ($b['type'] === FieldType::BOOLEAN) $v = ($v)?1:0;
-				if ($v === NULL) $v='NULL';
+				if ($b['private']) {
+					$v = '/*HIDDEN*/';
+				} else {
+					$v = $b['value'];
+					if ($b['type'] === FieldType::TEXT) $v = '\''.$v.'\'';
+					if ($b['type'] === FieldType::BOOLEAN) $v = ($v)?1:0;
+					if ($v === NULL) $v='NULL';
+				}
 			} else {
 				$v = '/*MISSING*/';
 			}

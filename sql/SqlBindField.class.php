@@ -25,6 +25,7 @@ abstract class SqlBindField {
 	 * @content <pre>array of bindName => array(
 	 * 					'value' => mixed // value of bind
 	 * 					'type' => int FieldType // type of field
+	 * 					'private' => boolean // if value is private data (like passwords)
 	 * 			)</pre> */
 	private $binds = array();
 
@@ -44,6 +45,11 @@ abstract class SqlBindField {
 	 */
 	private $others = array();
 	
+	/***
+	 * @var boolean TRUE if binds values are private (do not display in debug queries)
+	 */
+	public $privateBinds = FALSE;
+	
 	/**
 	 * Add a bind
 	 * @param mixed $value value of bind
@@ -59,10 +65,12 @@ abstract class SqlBindField {
 		if ($type === NULL) {
 			$type = FieldType::guessType($value);
 		}
-		
+
 		$this->binds[$bind]=array(
 				'value' => $value,
-				'type' => $type);
+				'type' => $type,
+				'private' => $this->privateBinds,
+		);
 
 		if ($source === NULL) {
 			$source = ClauseType::ALL;
@@ -77,6 +85,24 @@ abstract class SqlBindField {
 	}
 
 	/**
+	 * Set all binds values as private. They will be hidden in debug queries
+	 * @params boolean $privateBinds (Optional, TRUE) hide binds values in debug queries
+	 * @return SqlBindField the current object
+	 */
+	public function privateBinds($privateBinds = TRUE) {
+		$this->privateBinds = $privateBinds;
+		return $this;
+	}
+	
+	/**
+	 * Check binds are private
+	 * @return boolean TRUE if privateBinds has been called 
+	 */
+	public function isPrivateBinds() {
+		return $this->privateBinds;
+	}
+	
+	/**
 	 * Retrieve binds for pagination (LIMIT clause)
 	 * @param Pagination $pagination the Pagination object
 	 * @return mixed[][] binds for the Pagination : array of bindName => array of ('value' => ..., 'type' => ...)
@@ -87,11 +113,13 @@ abstract class SqlBindField {
 		$binds = array(
 			$offset => array(
 				'value' => $pagination->getOffset(),
-				'type' => FieldType::NUMBER
+				'type' => FieldType::NUMBER,
+				'private' => FALSE,
 			),
 			$limit => array(
 				'value' => $pagination->getLimit(),
-				'type' => FieldType::NUMBER
+				'type' => FieldType::NUMBER,
+				'private' => FALSE,
 			),
 		);
 		return $binds;

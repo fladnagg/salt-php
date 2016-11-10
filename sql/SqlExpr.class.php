@@ -403,6 +403,9 @@ class SqlExpr extends SqlBindField {
 				$params = array();
 				/** @var SqlExpr $p */
 				foreach($args as $p) {
+					if ($this->isPrivateBinds()) {
+						$p->privateBinds();
+					}
 					$params[] = $p->toSQL();
 					$this->linkBindsOf($p);
 				}

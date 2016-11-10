@@ -10,7 +10,7 @@ namespace salt;
 /**
  * Internal query for execution only
  */
-class CountQuery extends SqlBindField {
+class CountQuery extends BaseQuery {
 	
 	/**
 	 * @var string SQL text of the count query */
