@@ -273,6 +273,21 @@ class Salt {
 		$base.=DIRECTORY_SEPARATOR;
 		return $base;
 	}
+	
+	/**
+	 * Return a list of registered classes in provided path
+	 * @param string $path the path to find classes
+	 * @return string[] classes as (className => path)
+	 */
+	public static function getClassesByPath($path) {
+		$result = array();
+		foreach(self::$ALL_CLASSES as $className => $p) {
+			if (strpos($p, $path) === 0) {
+				$result[$className] = $p;
+			}
+		}
+		return $result;
+	}
 }
 
 /**
