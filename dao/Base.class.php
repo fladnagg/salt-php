@@ -180,6 +180,7 @@ abstract class Base extends Identifiable {
 		$q = new Query($meta, TRUE);
 		$idField = $meta->getIdField();
 		$q->whereAnd($idField , 'IN', $ids);
+		$q->disableIfEmpty($ids);
 		$r = $DB->execQuery($q);
 		$result = array();
 		foreach($r->data as $obj) {
