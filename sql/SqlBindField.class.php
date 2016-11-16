@@ -60,6 +60,14 @@ abstract class SqlBindField {
 	protected function addBind($value, $type, $source = ClauseType::ALL) {
 		$this->checkNotResolved();
 		
+		if (is_array($value)) { // handle tuples
+			$binds = array();
+			foreach($value as $v) {
+				$binds[] = $this->addBind($v, $type, $source);
+			}
+			return '('.implode(',', $binds).')';
+		}
+
 		$bind = ':v'.(self::$bindNumber++);
 
 		if ($type === NULL) {
