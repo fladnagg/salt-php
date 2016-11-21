@@ -100,6 +100,37 @@ class Field {
 		$this->displayFormat = (($displayFormat===NULL) && ($this->type === FieldType::DATE))?DEFAULT_DATE_DISPLAY_FORMAT:$displayFormat;
 		$this->useName = $useName;
 
+		$this->checkMetadata();
+	}
+
+	/**
+	 * Create a new Field from the current Field with some change. Every parameter can be NULL for keeping previous value
+	 * @param string $name the new name
+	 * @param string $text the new text
+	 * @param string $nullable the new value for nullable behavior
+	 * @param string $defaultValue the new default value
+	 * @param string $values the new values list
+	 * @return Field a new instance of Field with parameters 
+	 */
+	public function newClone($name = NULL, $text = NULL, $nullable = NULL, $defaultValue = NULL, $values = NULL) {
+		$field = clone $this;
+
+		if ($name !== NULL) $field->name = $name;
+		if ($text !== NULL) $field->text = $text;
+		if ($nullable !== NULL) $field->nullable = $nullable;
+		if ($defaultValue !== NULL) $field->defaultValue = $defaultValue;
+		if ($values !== NULL) $field->values = $values;
+		
+		$field->checkMetadata();
+		
+		return $field;
+	}
+	
+	/**
+	 * Check internal metadata of a field after creation
+	 * @throws SaltException if metadata are not valid
+	 */
+	private function checkMetadata() {
 		if ($this->type === FieldType::DATE) {
 			if ($this->format === NULL) {
 				throw new SaltException('You have to define the store format for date field');
@@ -109,7 +140,7 @@ class Field {
 				throw new SaltException('The format can only be defined for date field');
 			}
 		}
-
+		
 		if ((strpos(strtoupper($this->name), strtoupper(RESERVED_PREFIX)) === 0)
 		|| in_array(strtoupper($this->name), self::$RESERVED_FIELDS)) {
 			if ($this->useName === NULL) {
@@ -121,12 +152,12 @@ class Field {
 
 		if (($this->useName != NULL)
 		&& ((strpos(strtoupper($this->useName), strtoupper(RESERVED_PREFIX)) === 0)
-			|| in_array(strtoupper($this->name), self::$RESERVED_FIELDS))) {
+		|| in_array(strtoupper($this->name), self::$RESERVED_FIELDS))) {
 			throw new SaltException('The field ['.$this->name.'] cannot be added because it use an useName that is also a reserved word. Please set a valid useName for it.');
 		}
 
-		if (count($values) > 0) {
-			foreach($values as $k => $v) {
+		if (count($this->values) > 0) {
+			foreach($this->values as $k => $v) {
 				$this->validate($k);
 			}
 		}
@@ -134,7 +165,7 @@ class Field {
 			$this->validate($this->defaultValue);
 		}
 	}
-
+	
 	/**
 	 * Create a Field that contains a number
 	 * @param string $name column name
