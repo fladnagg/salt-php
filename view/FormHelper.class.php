@@ -230,6 +230,9 @@ class FormHelper {
 			foreach($args as $key) {
 				if (array_key_exists($key, $values)) {
 					$values = $values[$key];
+				} else { // if we don't find a key, don't let values to this state
+					$values = array();
+					break;
 				}
 			}
 			if (is_array($values)) {
