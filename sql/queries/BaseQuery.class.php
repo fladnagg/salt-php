@@ -79,7 +79,8 @@ abstract class BaseQuery extends SqlBindField {
 		if ($this->noAlias) {
 			return self::escapeName($fieldNameOrValue);
 		}
-		return $this->alias.'.'.$fieldNameOrValue;
+		return $this->alias.'.'.$fieldNameOrValue; // FIXME : date in timestamp format is not converted to DATE format in WHERE clause
+// 		return SqlExpr::field($this->alias, $this->obj->getField($fieldNameOrValue))->toSQL();
 	}
 	
 	/**
