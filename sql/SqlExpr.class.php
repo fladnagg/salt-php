@@ -292,7 +292,9 @@ class SqlExpr extends SqlBindField {
 		$result = array();
 		if ($this->objectType === self::FIELD) {
 			$alias = first($this->data);
-			$result[$alias]=$alias;
+			if ($alias !== NULL) {
+				$result[$alias]=$alias;
+			}
 		} else if ($this->objectType === self::FUNC) {
 			$args = $this->data;
 			array_shift($args);
@@ -414,7 +416,10 @@ class SqlExpr extends SqlBindField {
 			case self::FIELD:
 				/** @var Field $field */
 				list($alias, $field) = $this->data;
-				$s.=$alias.'.'.$field->name;
+				if ($alias !== NULL) {
+					$s.=$alias.'.';
+				} 
+				$s.=$field->name;
 				if ($this->type === NULL) {
 					$this->type = $field->type;
 					$this->dateFormat = $field->format;

@@ -295,7 +295,11 @@ class Query extends BaseQuery {
 	 * @return SqlExpr the SqlExpr of the field
 	 */
 	public function getField($field) {
-		return SqlExpr::field($this->alias, $this->obj->getField($field));
+		if ($this->noAlias) {
+			return SqlExpr::field(NULL, $this->obj->getField($field));
+		} else {
+			return SqlExpr::field($this->alias, $this->obj->getField($field));
+		}
 	}
 
 	/**
