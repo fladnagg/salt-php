@@ -27,6 +27,11 @@ class Pagination {
 	/**
 	 * @var boolean true if object is locked : cannot be used for paging, only for SQL offset/limit */
 	private $locked = false;
+	
+	/**
+	 * @var boolean true if you allow SALT to reset counter if the value is outside of elements count. Set it to FALSE if you want to manually handle count (multiple queries with 1 pagination)  
+	 */
+	private $allowReset = TRUE;
 
 	/**
 	 * Create a new Pagination object
@@ -46,6 +51,13 @@ class Pagination {
 	 */
 	public function isLocked() {
 		return $this->locked;
+	}
+	
+	/**
+	 * Avoid reset of offset if offset is greater than elements count. Can be used for handling multiple queries with one Pagination 
+	 */
+	public function noReset() {
+		$this->allowReset = FALSE;
 	}
 
 	/**
@@ -81,9 +93,9 @@ class Pagination {
 	 */
 	public function setCount($count) {
 		$this->count = $count;
-// 		if ($this->offset > $count) {
-// 			$this->offset = 0;
-// 		}
+		if (($this->offset > $count) && $this->allowReset) {
+			$this->offset = 0;
+		}
 	}
 
 	/**
