@@ -457,6 +457,14 @@ class DBHelper {
 	}
 
 	/**
+	 * Check transaction is active
+	 * @return boolean TRUE if we are in a transaction
+	 */
+	public function inTransaction() {
+		return ($this->txLevel > 0);
+	}
+	
+	/**
 	 * Start a transaction with PDO
 	 * @throws SaltException if PDO->beginTransaction() failed
 	 */
