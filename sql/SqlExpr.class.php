@@ -24,7 +24,10 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * type of SqlExpr : a static text */
 	const TEXT=3;
-
+	/**
+	 * type of SqlExpr : a sub query */
+	const QUERY=4;
+	
 	/**
 	 * template replaced by the main source of SqlExpr */
 	const TEMPLATE_MAIN="\1:main\2";
@@ -128,6 +131,16 @@ class SqlExpr extends SqlBindField {
 		return $sql;
 	}
 
+	/**
+	 * Create a new SqlExpr for a query
+	 * 
+	 * @param Query $query a query that return a compatible value with the usage of the SqlExpr.
+	 * @return SqlExpr
+	 */
+	public static function query(Query $query) {
+		return new SqlExpr(self::QUERY, $query);
+	}
+	
 	/**
 	 * Set the SqlExpr type to NUMBER
 	 * @return SqlExpr current object
@@ -435,6 +448,10 @@ class SqlExpr extends SqlBindField {
 				} else {
 					$s.=$this->data;
 				}
+			break;
+			case self::QUERY:
+				$this->linkBindsOf($this->data);
+				$s.='('.$this->data->toSQL().')';
 			break;
 		}
 
