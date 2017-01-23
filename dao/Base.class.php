@@ -121,6 +121,20 @@ abstract class Base extends Identifiable {
 	}
 
 	/**
+	 * Add an extra field on instance after object creation
+	 * @param string $extraField field name
+	 * @throws SaltException if field name is a regular field
+	 */
+	public function addExtraField($extraField) {
+		$child = get_called_class();
+		if (isset(self::$_saltMetadata[$child]['fields'][$extraField])) {
+			throw new SaltException('The field ['.$extraField.'] already exists');
+		}
+		$this->_saltExtraFields[$extraField] = NULL;
+		$this->_saltExtraFieldsMetadata[$extraField] = Field::newText($extraField, $extraField, TRUE);
+	}
+
+	/**
 	 * Get all Field declared in ::metadata()
 	 * @return Field[] list of all Field metadata : fieldName => Field */
 	public function getFieldsMetadata() {
