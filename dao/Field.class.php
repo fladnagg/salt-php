@@ -247,7 +247,11 @@ class Field {
 
 		if ($this->nullable) {
 			if ($value === NULL) {
-				return true;
+				return TRUE;
+			}
+			// a NULL key is converted in empty string in PHP
+			if (($value === '') && (count($this->values) > 0)) {
+				return TRUE;
 			}
 		} else {
 			if ($value === NULL) {
