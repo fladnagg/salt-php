@@ -134,10 +134,10 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * Create a new SqlExpr for a query
 	 * 
-	 * @param Query $query a query that return a compatible value with the usage of the SqlExpr.
+	 * @param BaseQuery $query a query that return a compatible value with the usage of the SqlExpr.
 	 * @return SqlExpr
 	 */
-	public static function query(Query $query) {
+	public static function query(BaseQuery $query) {
 		return new SqlExpr(self::QUERY, $query);
 	}
 	
