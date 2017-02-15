@@ -144,21 +144,33 @@ class FormHelper {
 
 		$hiddens = array();
 
-		$query = '';
 		if ($action === NULL) {
 			$action = $Input->S->RAW->REQUEST_URI;
 		}
-		$datas = explode('?', $action, 2);
-		$action = first($datas);
+		
+		$anchor = NULL;
+		$datas = explode('#', $action, 2);
+		if (count($datas) > 1) {
+			$anchor = last($datas); 
+		}
+		$datas = first($datas);
+
+		$query = '';
+		$datas = explode('?', $datas, 2);
 		if (count($datas)>1) {
 			$query = last($datas);
 		}
+		$action = first($datas);
 
 		$newParams = self::parseParams($query, $params);
 		if (count($newParams) > 0) {
-			$action = $action.'?'.http_build_query($newParams);
+			$action .= '?'.http_build_query($newParams);
 		}
 
+		if ($anchor !== NULL) {
+			$action.= '#'.$anchor;
+		}
+		
 		$others['action'] = $action;
 
 		return self::HTMLtag('form', $others, NULL, self::TAG_OPEN);
