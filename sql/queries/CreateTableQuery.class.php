@@ -30,7 +30,7 @@ class CreateTableQuery extends Query {
 		$fields = array();
 		/**
 		 * @var Field $field */
-		foreach($this->obj->getFieldsMetadata() as $field) {
+		foreach($this->_salt_obj->getFieldsMetadata() as $field) {
 			$f=$this->escapeName($field->name);
 			$f.=' '.self::getSqlTypeForField($field);
 			if (!$field->nullable) {
@@ -43,7 +43,7 @@ class CreateTableQuery extends Query {
 			$fields[]=$f;
 		}
 
-		$sql = 'CREATE TABLE '.$this->obj->getTableName().' ( ';
+		$sql = 'CREATE TABLE '.$this->_salt_obj->getTableName().' ( ';
 		$sql.= implode(', ', $fields);
 		$sql.=' ) ENGINE=InnoDB';
 

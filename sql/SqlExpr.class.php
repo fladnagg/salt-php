@@ -79,6 +79,7 @@ class SqlExpr extends SqlBindField {
 	 * @param string $name name of the function
 	 * @param mixed|SqlExpr ... $args list of function arguments. All arg that is not a SqlExpr is converted with SqlExpr::value($arg)
 	 * @return SqlExpr
+	 * @deprecated call SqlExpr::_&lt;funcName>(args) instead of SqlExpr::func('&lt;funcName>', args)
 	 */
 	public static function func($name, $args = NULL) {
 
@@ -376,6 +377,29 @@ class SqlExpr extends SqlBindField {
 		return $template;
 	}
 
+	/**
+	 * Create a new SqlExpr for an SQL function
+	 * @param string $func name of the SQL function with an underscore prefix for avoid collision with PHP keywords or other defined functions
+	 * @param mixed|SqlExpr ... $args list of function arguments. All arg that is not a SqlExpr is converted with SqlExpr::value($arg)
+	 * @return SqlExpr
+	 */
+	public static function __callstatic($func, $args) {
+		if (strpos($func, '_') === 0) {
+			
+			$func = substr($func, 1);
+
+			foreach($args as $k => $arg) {
+				if (!($arg instanceof SqlExpr)) {
+					$args[$k] = SqlExpr::value($arg);
+				}
+			}
+			array_unshift($args, $func);
+			
+			return new SqlExpr(self::FUNC, $args);
+		}
+		throw new \BadMethodCallException($func.' is not a valid SQL function. For avoid collision with PHP keywords or other defined method, SQL functions have to start with underscore : _IF, _MAX, etc...');
+	}
+	
 	/**
 	 * Change in objet after calling this method are ignored
 	 * @return string the SQL text for SqlExpr

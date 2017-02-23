@@ -13,7 +13,7 @@ namespace salt;
 class DeleteQuery extends UpdateQuery {
 
 	/** @var Base[] List of deleted objects */
-	private $objects;
+	private $_salt_objects;
 
 	/**
 	 * Create a query for delete one or more object
@@ -45,9 +45,9 @@ class DeleteQuery extends UpdateQuery {
 			}
 		}
 
-		$this->objects = $notReadonlyObjects;
+		$this->_salt_objects = $notReadonlyObjects;
 
-		$this->noAlias = TRUE;
+		$this->_salt_noAlias = TRUE;
 	}
 
 	/**
@@ -55,7 +55,7 @@ class DeleteQuery extends UpdateQuery {
 	 * @return int number of objects expected to be deleted
 	 */
 	public function getDeletedObjectCount() {
-		return count($this->objects);
+		return count($this->_salt_objects);
 	}
 
 	/**
@@ -65,9 +65,9 @@ class DeleteQuery extends UpdateQuery {
 	protected function buildSQL() {
 		$sql='DELETE FROM '.$this->resolveTable();
 
-		if (!$this->allowMultiple) {
+		if (!$this->_salt_allowMultiple) {
 			$deletedObjects = array();
-			foreach($this->objects as $obj) {
+			foreach($this->_salt_objects as $obj) {
 				$obj->delete();
 				$deletedObjects[] = $obj;
 			}
@@ -75,7 +75,7 @@ class DeleteQuery extends UpdateQuery {
 				$this->whereAndObject($deletedObjects);
 			}
 		}
-		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {
+		if ((count($this->_salt_wheres) === 0) && !$this->_salt_allowEmptyWhere) {
 			throw new SaltException('You don\'t have a WHERE clause on DELETE. Please call allowEmptyWhere() if you really want to do this');
 		}
 

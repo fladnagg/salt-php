@@ -15,16 +15,16 @@ class InsertQuery extends BaseQuery {
 	/**
 	 * @var Base[] list of objects to insert
 	 */
-	private $objects;
+	private $_salt_objects;
 
 	/**
 	 * @var string[][] list of values to insert
 	 * @content array of array of field=>bind
 	 */
-	private $sets = array();
+	private $_salt_sets = array();
 
 	/** @var string[] array of modified field names */
-	private $fields = array();
+	private $_salt_fields = array();
 
 	/**
 	 * Construct a new INSERT query
@@ -42,7 +42,7 @@ class InsertQuery extends BaseQuery {
 		parent::__construct($obj);
 
 		$class = get_class($obj);
-		$this->fields = array_keys($obj->getModifiedFields());
+		$this->_salt_fields = array_keys($obj->getModifiedFields());
 
 		/**
 		 * @var Base $o */
@@ -56,23 +56,23 @@ class InsertQuery extends BaseQuery {
 				throw new SaltException('Cannot insert object which are not in NEW state');
 			}
 			$fields = array_keys($o->getModifiedFields());
-			if ((count($this->fields) != count($fields))
-			|| (count(array_diff($this->fields, $fields)) > 0)) {
+			if ((count($this->_salt_fields) != count($fields))
+			|| (count(array_diff($this->_salt_fields, $fields)) > 0)) {
 				throw new SaltException('Cannot insert objects which have not the same fields modified. '.
-						'The first object change fields ['.implode(',', $this->fields).'], but another '.
+						'The first object change fields ['.implode(',', $this->_salt_fields).'], but another '.
 						'object change fields ['.implode(',', $fields).']');
 			}
 
 			$sets = array();
-			foreach($this->fields as $f) {
-				$expr = SqlExpr::value($o->$f)->asSetter($this->obj->getField($f));
+			foreach($this->_salt_fields as $f) {
+				$expr = SqlExpr::value($o->$f)->asSetter($this->_salt_obj->getField($f));
 				$sets[$f] = $this->resolveFieldName(ClauseType::INSERT, $expr);
 				//$this->binds = array_merge($this->binds, $expr->getBinds()); // already done by resolveFieldName
 			}
-			$this->sets[] = $sets;
+			$this->_salt_sets[] = $sets;
 		}
 
-		$this->objects = $objects;
+		$this->_salt_objects = $objects;
 	}
 
 	/**
@@ -80,7 +80,7 @@ class InsertQuery extends BaseQuery {
 	 * @return int the number of expected objects to insert
 	 */
 	public function getInsertObjectCount() {
-		return count($this->objects);
+		return count($this->_salt_objects);
 	}
 
 	/**
@@ -88,16 +88,16 @@ class InsertQuery extends BaseQuery {
 	 * @see \salt\SqlBindField::buildSQL()
 	 */
 	protected function buildSQL() {
-		$sql='INSERT INTO '.$this->obj->getTableName();
+		$sql='INSERT INTO '.$this->_salt_obj->getTableName();
 
-		$sql.=' (`'.implode('`, `', $this->fields).'`)';
+		$sql.=' (`'.implode('`, `', $this->_salt_fields).'`)';
 
 		$allValues = array();
 		/**
 		 * @var Base $obj */
-		foreach($this->sets as $sets) {
+		foreach($this->_salt_sets as $sets) {
 			$values = array();
-			foreach($this->fields as $f) {
+			foreach($this->_salt_fields as $f) {
 				$values[] = $sets[$f];
 			}
 			$allValues[]='('.implode(', ', $values).')';

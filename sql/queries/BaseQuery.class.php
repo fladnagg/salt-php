@@ -14,18 +14,18 @@ abstract class BaseQuery extends SqlBindField {
 
 	/**
 	 * @var boolean FALSE for never execute the query */
-	protected $enabled = TRUE;
+	private $_salt_enabled = TRUE;
 	
 	/**
 	 * @var Base internal instance of object the query is build for */
-	protected $obj;
+	protected $_salt_obj;
 
 	/**
 	 * Construct a new query
 	 * @param Base $obj the object is used for retrieve metadata.
 	 */
 	public function __construct(Base $obj) {
-		$this->obj = $obj;
+		$this->_salt_obj = $obj;
 	}
 
 	/**
@@ -45,7 +45,7 @@ abstract class BaseQuery extends SqlBindField {
 	 * @return int FiedType type of the field
 	 */
 	private function getFieldType($field) {
-		return $this->obj->getField($field)->type;
+		return $this->_salt_obj->getField($field)->type;
 	}
 
 	/**
@@ -76,11 +76,11 @@ abstract class BaseQuery extends SqlBindField {
 				return $bind;
 			}
 		}
-		if ($this->noAlias) {
+		if ($this->_salt_noAlias) {
 			return self::escapeName($fieldNameOrValue);
 		}
-		return $this->alias.'.'.$fieldNameOrValue; // FIXME : date in timestamp format is not converted to DATE format in WHERE clause
-// 		return SqlExpr::field($this->alias, $this->obj->getField($fieldNameOrValue))->toSQL();
+		return $this->_salt_alias.'.'.$fieldNameOrValue; // FIXME : date in timestamp format is not converted to DATE format in WHERE clause
+// 		return SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($fieldNameOrValue))->toSQL();
 	}
 	
 	/**
@@ -96,7 +96,7 @@ abstract class BaseQuery extends SqlBindField {
 	 */
 	public function disableIfEmpty($list) {
 		if (!is_array($list) || (count($list) === 0)) {
-			$this->enabled = FALSE;
+			$this->_salt_enabled = FALSE;
 		}
 	}
 	
@@ -105,6 +105,6 @@ abstract class BaseQuery extends SqlBindField {
 	 * @return boolean TRUE if the query can be executed, FALSE otherwise
 	 */
 	public function isEnabled() {
-		return $this->enabled;
+		return $this->_salt_enabled;
 	}
 }

@@ -14,11 +14,11 @@ abstract class SqlBindField {
 
 	/**
 	 * @var int bind unique number */
-	private static $bindNumber=0;
+	private static $_salt_bindNumber=0;
 
 	/**
 	 * @var int bind pagination unique number */
-	private static $bindPaginationNumber=0;
+	private static $_salt_bindPaginationNumber=0;
 	
 	/**
 	 * @var mixed[] list of binds
@@ -27,28 +27,28 @@ abstract class SqlBindField {
 	 * 					'type' => int FieldType // type of field
 	 * 					'private' => boolean // if value is private data (like passwords)
 	 * 			)</pre> */
-	private $binds = array();
+	private $_salt_binds = array();
 
 	/**
 	 * @var string SQL text that use the binds
 	 */
-	private $text = NULL;
+	private $_salt_text = NULL;
 	
 	/**
 	 * @var string[][] list of local binds by source
 	 * @content <pre>array of (ClauseType => array of bindName)</pre>
 	 */
-	private $sources = array();
+	private $_salt_sources = array();
 	/**
 	 * @var SqlBindField[][][] list of linked binds
 	 * @content <pre>array of (ClauseType (source) => array of ClauseType(dest) => array of SqlBindField)</pre>
 	 */
-	private $others = array();
+	private $_salt_others = array();
 	
 	/***
 	 * @var boolean TRUE if binds values are private (do not display in debug queries)
 	 */
-	public $privateBinds = FALSE;
+	private $_salt_privateBinds = FALSE;
 	
 	/**
 	 * Add a bind
@@ -68,26 +68,26 @@ abstract class SqlBindField {
 			return '('.implode(',', $binds).')';
 		}
 
-		$bind = ':v'.(self::$bindNumber++);
+		$bind = ':v'.(self::$_salt_bindNumber++);
 
 		if ($type === NULL) {
 			$type = FieldType::guessType($value);
 		}
 
-		$this->binds[$bind]=array(
+		$this->_salt_binds[$bind]=array(
 				'value' => $value,
 				'type' => $type,
-				'private' => $this->privateBinds,
+				'private' => $this->_salt_privateBinds,
 		);
 
 		if ($source === NULL) {
 			$source = ClauseType::ALL;
 		}
 		
-		if (!isset($this->sources[$source])) {
-			$this->sources[$source] = array();
+		if (!isset($this->_salt_sources[$source])) {
+			$this->_salt_sources[$source] = array();
 		}
-		$this->sources[$source][] = $bind;
+		$this->_salt_sources[$source][] = $bind;
 		
 		return $bind;
 	}
@@ -98,7 +98,7 @@ abstract class SqlBindField {
 	 * @return SqlBindField the current object
 	 */
 	public function privateBinds($privateBinds = TRUE) {
-		$this->privateBinds = $privateBinds;
+		$this->_salt_privateBinds = $privateBinds;
 		return $this;
 	}
 	
@@ -107,7 +107,7 @@ abstract class SqlBindField {
 	 * @return boolean TRUE if privateBinds has been called 
 	 */
 	public function isPrivateBinds() {
-		return $this->privateBinds;
+		return $this->_salt_privateBinds;
 	}
 	
 	/**
@@ -116,8 +116,8 @@ abstract class SqlBindField {
 	 * @return mixed[][] binds for the Pagination : array of bindName => array of ('value' => ..., 'type' => ...)
 	 */
 	public static function getPaginationBinds(Pagination $pagination) {
-		$offset = ':L'.(self::$bindPaginationNumber++);
-		$limit = ':L'.(self::$bindPaginationNumber++);
+		$offset = ':L'.(self::$_salt_bindPaginationNumber++);
+		$limit = ':L'.(self::$_salt_bindPaginationNumber++);
 		$binds = array(
 			$offset => array(
 				'value' => $pagination->getOffset(),
@@ -147,19 +147,19 @@ abstract class SqlBindField {
 		}
 		
 		if ($source === ClauseType::ALL) { // not really needed, but avoid the useless for in that case
-			$result = $this->binds;
+			$result = $this->_salt_binds;
 		} else {
 			// all local binds
-			foreach($this->sources as $src => $binds) {
+			foreach($this->_salt_sources as $src => $binds) {
 				if (($source === ClauseType::ALL) || ($source === $src)) {
 					$bindKeys = array_flip($binds);
-					$result = array_merge($result, array_intersect_key($this->binds, $bindKeys));
+					$result = array_merge($result, array_intersect_key($this->_salt_binds, $bindKeys));
 				}
 			}
 		}
 		
 		// all linked binds
-		foreach($this->others as $src => $other) {
+		foreach($this->_salt_others as $src => $other) {
 			if (($source === ClauseType::ALL) || ($source === $src)) {
 				foreach($other as $dest => $otherBinds) {
 					foreach($otherBinds as $otherBind) {
@@ -180,21 +180,21 @@ abstract class SqlBindField {
 		
 		$this->checkNotResolved();
 
-		if (isset($this->sources[$source])) {
-			foreach($this->sources[$source] as $binds) {
+		if (isset($this->_salt_sources[$source])) {
+			foreach($this->_salt_sources[$source] as $binds) {
 				$bindKeys = array_flip($binds);
-				$this->binds = array_diff_key($this->binds, $bindKeys);
+				$this->_salt_binds = array_diff_key($this->_salt_binds, $bindKeys);
 			}
-			unset($this->sources[$source]);
+			unset($this->_salt_sources[$source]);
 		}
 		
-		if (isset($this->others[$source])) {
-			unset($this->others[$source]);
+		if (isset($this->_salt_others[$source])) {
+			unset($this->_salt_others[$source]);
 		}
 	}
 	
 	private function checkNotResolved() {
-		if ($this->text !== NULL) {
+		if ($this->_salt_text !== NULL) {
 			throw new SaltException('Cannot change SQL query after resolving');
 		}
 	}
@@ -213,17 +213,17 @@ abstract class SqlBindField {
 		if ($source === NULL) {
 			$source = ClauseType::ALL;
 		}
-		if (!isset($this->others[$source])) {
-			$this->others[$source]=array();
+		if (!isset($this->_salt_others[$source])) {
+			$this->_salt_others[$source]=array();
 		}
 		if ($otherSource === NULL) {
 			$otherSource = ClauseType::ALL;
 		}
-		if (!isset($this->others[$source][$otherSource])) {
-			$this->others[$source][$otherSource]=array();
+		if (!isset($this->_salt_others[$source][$otherSource])) {
+			$this->_salt_others[$source][$otherSource]=array();
 		}		
 
-		$this->others[$source][$otherSource][] = $other;
+		$this->_salt_others[$source][$otherSource][] = $other;
 	}
 
 	/**
@@ -246,9 +246,9 @@ abstract class SqlBindField {
 	 * @return string the memoized SQL text
 	 */
 	public final function toSQL() {
-		if ($this->text === NULL) {
-			$this->text = $this->buildSQL();
+		if ($this->_salt_text === NULL) {
+			$this->_salt_text = $this->buildSQL();
 		}
-		return $this->text;
+		return $this->_salt_text;
 	}
 }

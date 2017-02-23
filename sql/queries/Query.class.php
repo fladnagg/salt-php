@@ -13,19 +13,19 @@ namespace salt;
 class Query extends BaseQuery {
 	/**
 	 * @var int table alias unique number */
-	protected static $tableAliasNumber=0;
+	protected static $_salt_tableAliasNumber=0;
 	/**
 	 * @var string alias for the table */
-	protected $alias = NULL;
+	protected $_salt_alias = NULL;
 	/**
 	 * @var mixed[] list of fields to retrieve (SELECT)
 	 * @content array of array(SqlExpr, alias)
 	 */
-	protected $fields = array();
+	protected $_salt_fields = array();
 	/**
 	 * @var string[] list of where clause
 	 * @content AND / OR are parts of $where elements */
-	protected $wheres = array();
+	protected $_salt_wheres = array();
 	/**
 	 * @var mixed[] list of join clause
 	 * @content <pre>array of string => array( // key is table alias for join
@@ -34,18 +34,18 @@ class Query extends BaseQuery {
 	 * 			'table' => string // table name or inner select table of the joined object
 	 * 			'on' => array of string // where clauses, like $wheres
 	 * 		)</pre> */
-	protected $joins = array();
+	protected $_salt_joins = array();
 	/**
 	 * @var string[] : list of order by clause
 	 * @content field ASC|DESC */
-	protected $orders = array();
+	protected $_salt_orders = array();
 	/**
 	 * @var string[] : list of field name for group by clause */
-	protected $groups = array();
+	protected $_salt_groups = array();
 
 	/**
 	 * @var boolean TRUE if table name does not have to use alias (DELETE query) */
-	protected $noAlias = FALSE;
+	protected $_salt_noAlias = FALSE;
 	
 	/**
 	 * Create a new SELECT query
@@ -56,9 +56,9 @@ class Query extends BaseQuery {
 		parent::__construct($obj);
 		
 		if ($obj instanceof Dual) {
-			$this->noAlias = TRUE;
+			$this->_salt_noAlias = TRUE;
 		} else {
-			$this->alias = 't'.self::$tableAliasNumber++;
+			$this->_salt_alias = 't'.self::$_salt_tableAliasNumber++;
 		}
 
 		if ($withField) {
@@ -74,8 +74,8 @@ class Query extends BaseQuery {
 	 * @return Query a query on the same table with the same alias for using in whereAndQuery or whereOrQuery
 	 */
 	public function getSubQuery() {
-		$subQuery = new Query($this->obj);
-		$subQuery->alias = $this->alias;
+		$subQuery = new Query($this->_salt_obj);
+		$subQuery->_salt_alias = $this->_salt_alias;
 		return $subQuery;
 	}
 
@@ -84,7 +84,7 @@ class Query extends BaseQuery {
 	 * @return string the class of object the query work on
 	 */
 	public function getBindingClass() {
-		return get_class($this->obj);
+		return get_class($this->_salt_obj);
 	}
 
 	/**
@@ -133,7 +133,7 @@ class Query extends BaseQuery {
 
 		$aliases = $expr->getAllUsedTableAlias();
 		foreach($aliases as $a) {
-			if (($this->alias !== $a) && !isset($this->joins[$a])) {
+			if (($this->_salt_alias !== $a) && !isset($this->_salt_joins[$a])) {
 				throw new SaltException('No query with alias ['.$a.'] in join clauses. We cannot add the field '.$expr->toSQL().' in select clause');
 			}
 		}
@@ -146,7 +146,7 @@ class Query extends BaseQuery {
 			throw new SaltException('Please provide an alias for field '.$expr->toSQL());
 		}
 
-		$this->fields[]=array($expr, $as);
+		$this->_salt_fields[]=array($expr, $as);
 
 		return $expr;
 	}
@@ -156,7 +156,7 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr the field to order by ASC
 	 */
 	public function orderAsc($fieldOrExpr) {
-		$this->orders[]=$this->resolveFieldName(ClauseType::ORDER, $fieldOrExpr).' ASC';
+		$this->_salt_orders[]=$this->resolveFieldName(ClauseType::ORDER, $fieldOrExpr).' ASC';
 	}
 
 	/**
@@ -164,7 +164,7 @@ class Query extends BaseQuery {
 	 * @param string|SqlExpr $fieldOrExpr the field to order by DESC
 	 */
 	 public function orderDesc($fieldOrExpr) {
-		$this->orders[]=$this->resolveFieldName(ClauseType::ORDER, $fieldOrExpr).' DESC';
+		$this->_salt_orders[]=$this->resolveFieldName(ClauseType::ORDER, $fieldOrExpr).' DESC';
 	}
 
 	/**
@@ -225,8 +225,8 @@ class Query extends BaseQuery {
 			$objects = array($objects);
 		}
 
-		$idField = $this->obj->getIdField();
-		$class = get_class($this->obj);
+		$idField = $this->_salt_obj->getIdField();
+		$class = get_class($this->_salt_obj);
 
 		$allIds = array();
 		foreach($objects as $obj) {
@@ -265,8 +265,8 @@ class Query extends BaseQuery {
 	 * @param Query $subQuery have to be a query retrieved by getSubQuery()
 	 */
 	private function addWhereQuery($type, Query $subQuery) {
-		if ($subQuery->alias == $this->alias) {
-			$this->addWhereClause($type, '('.implode(' ',$subQuery->wheres).')');
+		if ($subQuery->_salt_alias == $this->_salt_alias) {
+			$this->addWhereClause($type, '('.implode(' ',$subQuery->_salt_wheres).')');
 			$this->linkBindsOf($subQuery, ClauseType::WHERE, ClauseType::WHERE);
 		} else {
 			throw new SaltException('Cannot use a subquery on a different table of the main query');
@@ -282,10 +282,10 @@ class Query extends BaseQuery {
 		if (is_array($whereClause)) {
 			$whereClause=implode(' ', $whereClause);
 		}
-		if (count($this->wheres)>0) {
-			$this->wheres[]=$type.' '.$whereClause;
+		if (count($this->_salt_wheres)>0) {
+			$this->_salt_wheres[]=$type.' '.$whereClause;
 		} else {
-			$this->wheres[]=$whereClause;
+			$this->_salt_wheres[]=$whereClause;
 		}
 	}
 
@@ -293,12 +293,13 @@ class Query extends BaseQuery {
 	 * Get a field as a SqlExpr for reuse it in another query / SqlExpr
 	 * @param string $field the field name to get
 	 * @return SqlExpr the SqlExpr of the field
+	 * @deprecated call $q->&lt;fieldName> instead of $q->getField('&lt;fieldName>')
 	 */
 	public function getField($field) {
-		if ($this->noAlias) {
-			return SqlExpr::field(NULL, $this->obj->getField($field));
+		if ($this->_salt_noAlias) {
+			return SqlExpr::field(NULL, $this->_salt_obj->getField($field));
 		} else {
-			return SqlExpr::field($this->alias, $this->obj->getField($field));
+			return SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($field));
 		}
 	}
 
@@ -311,7 +312,7 @@ class Query extends BaseQuery {
 	 * @return SqlExpr the expression for this alias
 	 */
 	public function getSelect($alias) {
-		foreach($this->fields as $select) {
+		foreach($this->_salt_fields as $select) {
 			list($expr, $aliasName) = $select;
 			if ($alias === $aliasName) {
 				return SqlExpr::text(self::escapeName($alias));
@@ -364,7 +365,7 @@ class Query extends BaseQuery {
 	 */
 	public function groupBy($fieldOrExpr) {
 		$absoluteField = $this->resolveFieldName(ClauseType::GROUP, $fieldOrExpr);
-		$this->groups[]=$absoluteField;
+		$this->_salt_groups[]=$absoluteField;
 	}
 
 	/**
@@ -390,7 +391,7 @@ class Query extends BaseQuery {
 	 * @throws SaltException if this join already exists
 	 */
 	public function join(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER') {
-		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, $other->obj->getTableName());
+		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, $other->_salt_obj->getTableName());
 	}
 
 	/**
@@ -405,12 +406,12 @@ class Query extends BaseQuery {
 	 * @throws SaltException if this join already exists
 	 */
 	private function addJoin(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER', $table, $withOtherDatas=TRUE) {
-		if (isset($this->joins[$other->alias])) {
-			throw new SaltException('A join with the same alias ['.$other->alias.'] already exists.');
+		if (isset($this->_salt_joins[$other->_salt_alias])) {
+			throw new SaltException('A join with the same alias ['.$other->_salt_alias.'] already exists.');
 		}
 
-		$this->joins[$other->alias]=array(
-			'meta'=>$other->obj->getFieldsMetadata(),
+		$this->_salt_joins[$other->_salt_alias]=array(
+			'meta'=>$other->_salt_obj->getFieldsMetadata(),
 			'type'=>strtoupper($type),
 			'table'=>$table,
 			'on'=>array(),
@@ -428,21 +429,21 @@ class Query extends BaseQuery {
 
 		if ($withOtherDatas) {
 			// Merge of others parameters
-			if (count($other->fields) > 0) {
-				$this->fields=array_merge($this->fields, $other->fields);
+			if (count($other->_salt_fields) > 0) {
+				$this->_salt_fields=array_merge($this->_salt_fields, $other->_salt_fields);
 				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::SELECT);
 			}
-			if (count($other->wheres) > 0) {
+			if (count($other->_salt_wheres) > 0) {
 				//$this->addWhereClause('AND', $other->wheres);
-				$this->addJoinOnClause($other, 'AND', $other->wheres);
+				$this->addJoinOnClause($other, 'AND', $other->_salt_wheres);
 				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::WHERE);
 			}
-			if (count($other->groups) > 0) {
-				$this->groups=array_merge($this->groups, $other->groups);
+			if (count($other->_salt_groups) > 0) {
+				$this->_salt_groups=array_merge($this->_salt_groups, $other->_salt_groups);
 				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::GROUP);
 			}
-			if (count($other->orders) > 0) {
-				$this->orders=array_merge($this->orders, $other->orders);
+			if (count($other->_salt_orders) > 0) {
+				$this->_salt_orders=array_merge($this->_salt_orders, $other->_salt_orders);
 				$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::ORDER);
 			}
 		} else {
@@ -501,7 +502,7 @@ class Query extends BaseQuery {
 	 */
 	private function addJoinOnQuery($type, Query $other, Query $whereQuery) {
 		//$this->joins[$other->alias]['on'][]=' '.$type.' ('.implode(' ', $whereQuery->wheres).')';
-		$this->addJoinOnClause($other, $type, '('.implode(' ',$whereQuery->wheres).')');
+		$this->addJoinOnClause($other, $type, '('.implode(' ',$whereQuery->_salt_wheres).')');
 		$this->linkBindsOf($other, ClauseType::JOIN, ClauseType::WHERE);
 	}
 
@@ -515,10 +516,10 @@ class Query extends BaseQuery {
 		if (is_array($onClause)) {
 			$onClause=implode(' ', $onClause);
 		}
-		if (count($this->joins[$other->alias]['on'])>0) {
-			$this->joins[$other->alias]['on'][]=$type.' '.$onClause;
+		if (count($this->_salt_joins[$other->_salt_alias]['on'])>0) {
+			$this->_salt_joins[$other->_salt_alias]['on'][]=$type.' '.$onClause;
 		} else {
-			$this->joins[$other->alias]['on'][]=$onClause;
+			$this->_salt_joins[$other->_salt_alias]['on'][]=$onClause;
 		}
 	}
 	
@@ -532,8 +533,8 @@ class Query extends BaseQuery {
 	 * @throws SaltException if join don't exists
 	 */
 	private function addJoinOn($type, Query $other, $fieldOrExpr, $operator, $valueOrExpr) {
-		if (!array_key_exists($other->alias, $this->joins)) {
-			throw new SaltException('No join found for alias '.$other->alias.'.');
+		if (!array_key_exists($other->_salt_alias, $this->_salt_joins)) {
+			throw new SaltException('No join found for alias '.$other->_salt_alias.'.');
 		}
 
 		$absoluteField = $this->resolveFieldName(ClauseType::JOIN, $fieldOrExpr);
@@ -554,7 +555,7 @@ class Query extends BaseQuery {
 	 */
 	public function getSelectFields() {
 		$f = array();
-		foreach($this->fields as $field) {
+		foreach($this->_salt_fields as $field) {
 			$f[]=last($field);
 		}
 		return $f;
@@ -582,10 +583,10 @@ class Query extends BaseQuery {
 	 * @return string table name, with or without alias (depends on noAlias)
 	 */
 	protected function resolveTable() {
-		if ($this->noAlias) {
-			return $this->obj->getTableName();
+		if ($this->_salt_noAlias) {
+			return $this->_salt_obj->getTableName();
 		}
-		return $this->obj->getTableName().' '.$this->alias;
+		return $this->_salt_obj->getTableName().' '.$this->_salt_alias;
 	}
 
 	/**
@@ -609,8 +610,8 @@ class Query extends BaseQuery {
 	 */
 	protected function buildOrderClause() {
 		$sql='';
-		if (count($this->orders)>0) {
-			$sql.=' ORDER BY '.implode(', ', $this->orders);
+		if (count($this->_salt_orders)>0) {
+			$sql.=' ORDER BY '.implode(', ', $this->_salt_orders);
 		}
 		return $sql;
 	}
@@ -621,8 +622,8 @@ class Query extends BaseQuery {
 	 */
 	protected function buildGroupClause() {
 		$sql = '';
-		if (count($this->groups) > 0) {
-			$sql.=' GROUP BY '.implode(', ', $this->groups);
+		if (count($this->_salt_groups) > 0) {
+			$sql.=' GROUP BY '.implode(', ', $this->_salt_groups);
 		}
 		return $sql;
 	}
@@ -633,8 +634,8 @@ class Query extends BaseQuery {
 	 */
 	protected function buildJoinClause() {
 		$sql='';
-		if (count($this->joins)>0) {
-			foreach($this->joins as $alias => $join) {
+		if (count($this->_salt_joins)>0) {
+			foreach($this->_salt_joins as $alias => $join) {
 				$sql.=' '.$join['type'].' JOIN '.$join['table'].' '.$alias.' ON '.implode(' ', $join['on']);
 			}
 		}
@@ -647,8 +648,8 @@ class Query extends BaseQuery {
 	 */
 	protected function buildWhereClause() {
 		$sql='';
-		if (count($this->wheres)>0) {
-			$sql.=' WHERE '.implode(' ', $this->wheres);
+		if (count($this->_salt_wheres)>0) {
+			$sql.=' WHERE '.implode(' ', $this->_salt_wheres);
 		}
 		return $sql;
 
@@ -665,7 +666,7 @@ class Query extends BaseQuery {
 		$hasDistinct = (strpos(strtolower($selectClause), 'distinct') !== FALSE);
 
 		$excludeBinds = array();
-		if (($hasDistinct) || (count($this->groups) > 0)) {
+		if (($hasDistinct) || (count($this->_salt_groups) > 0)) {
 			// if select clause have a distinct... we have to count the complete subquery...
  			// with groups, count() also need to be executed on a sub select query...
  			// @see http://stackoverflow.com/questions/364825/getting-the-number-of-rows-with-a-group-by-query
@@ -689,7 +690,7 @@ class Query extends BaseQuery {
 	protected function buildSelectClause() {
 		$sql='';
 		$fields=array();
-		foreach($this->fields as $data) {
+		foreach($this->_salt_fields as $data) {
 			/** @var SqlExpr $expr */
 			list($expr, $alias) = $data;
 
@@ -712,5 +713,17 @@ class Query extends BaseQuery {
 		$sql.=$this->buildOrderClause();
 		
 		return $sql;
+	}
+	
+
+	/**
+	 * Retrieve a field of the object of the query
+	 * @param string $fieldName name of the field
+	 * @return SqlExpr the field as an SqlExpr
+	 */
+	public function __get($fieldName) {
+		// register field on object for avoid next access
+		$this->$fieldName = $this->getField($fieldName);
+		return $this->$fieldName;
 	}
 }

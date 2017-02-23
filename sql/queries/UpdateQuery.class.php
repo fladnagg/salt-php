@@ -14,16 +14,16 @@ class UpdateQuery extends Query {
 
 	/**
 	 * @var mixed[] list of fields => values to update */
-	private $sets = array();
+	private $_salt_sets = array();
 
 	/**
 	 * @var boolean TRUE for allow WHERE clause to update multiple objects
 	 */
-	protected $allowMultiple = FALSE;
+	protected $_salt_allowMultiple = FALSE;
 	/**
 	 * @var boolean TRUE for allow and empty WHERE clause
 	 */
-	protected $allowEmptyWhere = FALSE;
+	protected $_salt_allowEmptyWhere = FALSE;
 
 	/**
 	 * Create a new UPDATE query
@@ -36,10 +36,10 @@ class UpdateQuery extends Query {
 		parent::__construct($obj);
 
 		if ($fromQuery !== NULL) {
-			$this->alias = $fromQuery->alias;
-			$this->joins = $fromQuery->joins;
-			$this->wheres = $fromQuery->wheres;
-			$this->orders = $fromQuery->orders;
+			$this->_salt_alias = $fromQuery->_salt_alias;
+			$this->_salt_joins = $fromQuery->_salt_joins;
+			$this->_salt_wheres = $fromQuery->_salt_wheres;
+			$this->_salt_orders = $fromQuery->_salt_orders;
 			
 			$this->linkBindsOf($fromQuery);
 		}
@@ -56,7 +56,7 @@ class UpdateQuery extends Query {
 	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again multiple update after an allow
 	 */
 	public function allowMultipleChange($value = TRUE) {
-		$this->allowMultiple = $value;
+		$this->_salt_allowMultiple = $value;
 	}
 
 	/**
@@ -64,7 +64,7 @@ class UpdateQuery extends Query {
 	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again empty where after an allow
 	 */
 	public function allowEmptyWhere($value = TRUE) {
-		$this->allowEmptyWhere = $value;
+		$this->_salt_allowEmptyWhere = $value;
 	}
 
 	/**
@@ -72,7 +72,7 @@ class UpdateQuery extends Query {
 	 * @return boolean TRUE if the update is not multiple and modify only 1 object
 	 */
 	public function isSimpleQuery() {
-		return (!$this->allowMultiple && (count($this->wheres) === 1));
+		return (!$this->_salt_allowMultiple && (count($this->_salt_wheres) === 1));
 	}
 
 	/**
@@ -81,7 +81,7 @@ class UpdateQuery extends Query {
 	 * @param int $value default 1
 	 */
 	public function increment($fieldName, $value = 1) {
-		$this->set($fieldName, SqlExpr::field($this->alias, $this->obj->getField($fieldName))->plus($value));
+		$this->set($fieldName, SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($fieldName))->plus($value));
 	}
 
 	/**
@@ -90,7 +90,7 @@ class UpdateQuery extends Query {
 	 * @param int $value default 1
 	 */
 	public function decrement($fieldName, $value = 1) {
-		$this->set($fieldName, SqlExpr::field($this->alias, $this->obj->getField($fieldName))->plus(- $value));
+		$this->set($fieldName, SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($fieldName))->plus(- $value));
 	}
 
 	/**
@@ -99,7 +99,7 @@ class UpdateQuery extends Query {
 	 * @param mixed|SqlExpr $expr the value
 	 */
 	public function set($fieldName, $expr) {
-		$field = $this->obj->getField($fieldName);
+		$field = $this->_salt_obj->getField($fieldName);
 
 		if (!($expr instanceof SqlExpr)) {
 			$expr = SqlExpr::value($expr);
@@ -111,7 +111,7 @@ class UpdateQuery extends Query {
 
 		$this->removeBinds($clauseKey);
 
-		$this->sets[$fieldName] = $this->resolveFieldName($clauseKey, $expr);
+		$this->_salt_sets[$fieldName] = $this->resolveFieldName($clauseKey, $expr);
 	}
 
 		/**
@@ -123,15 +123,15 @@ class UpdateQuery extends Query {
 		$sql.=$this->buildJoinClause();
 
 		$allSets=array();
-		foreach($this->sets as $field => $value) {
+		foreach($this->_salt_sets as $field => $value) {
 			$allSets[]=self::escapeName($field).' = '.$value;
 		}
 		$sql.=' SET '.implode(', ', $allSets);
 
-		if (!$this->allowMultiple && !$this->obj->isReadonly()) {
-			$this->whereAndObject($this->obj);
+		if (!$this->_salt_allowMultiple && !$this->_salt_obj->isReadonly()) {
+			$this->whereAndObject($this->_salt_obj);
 		}
-		if ((count($this->wheres) === 0) && !$this->allowEmptyWhere) {
+		if ((count($this->_salt_wheres) === 0) && !$this->_salt_allowEmptyWhere) {
 			throw new SaltException('You don\'t have a WHERE clause on UPDATE. Please call allowEmptyWhere() if you really want to do this');
 		}
 		$sql.=$this->buildWhereClause();
