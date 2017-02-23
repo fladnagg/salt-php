@@ -722,8 +722,8 @@ class Query extends BaseQuery {
 	 * @return SqlExpr the field as an SqlExpr
 	 */
 	public function __get($fieldName) {
-		// register field on object for avoid next access
-		$this->$fieldName = $this->getField($fieldName);
-		return $this->$fieldName;
+		// do NOT register field on object for avoid next access because the SqlExpr return object
+		// is modifiable outside but this method always have to return a clean SqlExpr
+		return $this->getField($fieldName);
 	}
 }
