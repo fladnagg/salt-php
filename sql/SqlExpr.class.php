@@ -116,6 +116,39 @@ class SqlExpr extends SqlBindField {
 	public static function text($text) {
 		return new SqlExpr(self::TEXT, $text);
 	}
+	
+	/**
+	 * Join multiple parameters with a separator
+	 * @param string $separator text to use for join parameters
+	 * @param SqlExpr|mixed ... $args list of parameters. Parameters that are not SqlExpr are converted with SqlExpr::value()
+	 * @return SqlExpr current object
+	 */
+	public static function implode($separator, $args) {
+		$args = func_get_args();
+		array_shift($args);
+		
+		$values = array_fill(0, count($args), self::TEMPLATE_PARAM);
+		$template = implode($separator, $values);
+		
+		$params = array();
+		foreach($args as $arg) {
+			if (!($arg instanceof SqlExpr)) {
+				$arg = SqlExpr::value($arg);
+			}
+			$params[] = $arg;
+		}
+		$result = SqlExpr::text('');
+		$result->template[] = array($template, $params);
+		return $result;
+	}
+	
+	/**
+	 * Add parenthesis around current SqlExpr
+	 * @return SqlExpr current objet
+	 */
+	public function parenthesis() {
+		return $this->template('('.self::TEMPLATE_MAIN.')');
+	}
 
 	/**
 	 * Create a new SqlExpr for a field
@@ -405,7 +438,6 @@ class SqlExpr extends SqlBindField {
 	 * @return string the SQL text for SqlExpr
 	 */
 	protected function buildSQL() {
-
 		$s='';
 		$sArray = NULL;
 
@@ -507,7 +539,6 @@ class SqlExpr extends SqlBindField {
 		// Templates
 		foreach($this->template as $t) {
 			list($template, $args) = $t;
-
 			$template = explode(self::TEMPLATE_PARAM, $template);
 			$params=array();
 			/** @var SqlExpr $arg */
