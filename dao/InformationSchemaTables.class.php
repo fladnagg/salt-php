@@ -17,13 +17,14 @@ class InformationSchemaTables extends Base {
 	 * @see \salt\Base::metadata()
 	 */
 	protected function metadata() {
-		parent::registerId('table_name');
-		parent::registerTableName('information_schema.tables');
-
-		return array(
+		
+		self::MODEL()
+			->registerId('table_name')
+			->registerTableName('information_schema.tables')
+			->registerFields(
 				Field::newText(	'table_name', 		'Nom table'),
-				Field::newText(	'table_schema', 	'Schema'),
-		);
+				Field::newText(	'table_schema', 	'Schema')
+			);
 	}
 
 	/**
@@ -34,10 +35,10 @@ class InformationSchemaTables extends Base {
 	 */
 	public static function missingTables(DBHelper $db, array $tableNames) {
 
-		$q = new Query(InformationSchemaTables::meta());
+		$q = InformationSchemaTables::query();
 		$q->selectField('table_name');
 		$q->whereAnd('table_name', 'IN', $tableNames);
-		$q->whereAnd('table_schema', '=', SqlExpr::func('database'));
+		$q->whereAnd('table_schema', '=', SqlExpr::_database());
 
 		$r = $db->execQuery($q);
 

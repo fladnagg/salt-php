@@ -15,14 +15,14 @@ abstract class BaseQuery extends SqlBindField {
 	/**
 	 * @var boolean FALSE for never execute the query */
 	private $_salt_enabled = TRUE;
-	
-	/**
-	 * @var Base internal instance of object the query is build for */
-	protected $_salt_obj;
 
 	/**
+	 * @var Base the object the query is build for */
+	protected $_salt_obj;
+		
+	/**
 	 * Construct a new query
-	 * @param Base $obj the object is used for retrieve metadata.
+	 * @param Base $obj the object used for retrieve metadata.
 	 */
 	public function __construct(Base $obj) {
 		$this->_salt_obj = $obj;
@@ -45,7 +45,7 @@ abstract class BaseQuery extends SqlBindField {
 	 * @return int FiedType type of the field
 	 */
 	private function getFieldType($field) {
-		return $this->_salt_obj->getField($field)->type;
+		return $this->_salt_obj->MODEL()->$field->type;
 	}
 
 	/**

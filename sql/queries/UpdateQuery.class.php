@@ -24,7 +24,7 @@ class UpdateQuery extends Query {
 	 * @var boolean TRUE for allow and empty WHERE clause
 	 */
 	protected $_salt_allowEmptyWhere = FALSE;
-
+	
 	/**
 	 * Create a new UPDATE query
 	 *
@@ -81,7 +81,7 @@ class UpdateQuery extends Query {
 	 * @param int $value default 1
 	 */
 	public function increment($fieldName, $value = 1) {
-		$this->set($fieldName, SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($fieldName))->plus($value));
+		$this->set($fieldName, $this->$fieldName->plus($value));
 	}
 
 	/**
@@ -90,7 +90,7 @@ class UpdateQuery extends Query {
 	 * @param int $value default 1
 	 */
 	public function decrement($fieldName, $value = 1) {
-		$this->set($fieldName, SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($fieldName))->plus(- $value));
+		$this->set($fieldName, $this->$fieldName->plus(- $value));
 	}
 
 	/**
@@ -99,7 +99,7 @@ class UpdateQuery extends Query {
 	 * @param mixed|SqlExpr $expr the value
 	 */
 	public function set($fieldName, $expr) {
-		$field = $this->_salt_obj->getField($fieldName);
+		$field = $this->_salt_obj->MODEL()->$fieldName;
 
 		if (!($expr instanceof SqlExpr)) {
 			$expr = SqlExpr::value($expr);

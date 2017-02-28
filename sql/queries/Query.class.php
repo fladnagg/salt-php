@@ -29,7 +29,6 @@ class Query extends BaseQuery {
 	/**
 	 * @var mixed[] list of join clause
 	 * @content <pre>array of string => array( // key is table alias for join
-	 * 			'meta' => array of Field // of the joined object
 	 * 			'type' => string // join type 'INNER|OUTER|LEFT INNER|...'
 	 * 			'table' => string // table name or inner select table of the joined object
 	 * 			'on' => array of string // where clauses, like $wheres
@@ -49,7 +48,7 @@ class Query extends BaseQuery {
 	
 	/**
 	 * Create a new SELECT query
-	 * @param Base $obj instance of object for query creation
+	 * @param Base $obj object for query creation
 	 * @param boolean $withField TRUE for load all the fields
 	 */
 	public function __construct(Base $obj, $withField=FALSE) {
@@ -62,8 +61,8 @@ class Query extends BaseQuery {
 		}
 
 		if ($withField) {
-			foreach($obj->getFieldsMetadata() as $meta) {
-				$this->selectField($meta->name);
+			foreach($obj->MODEL()->getFields() as $field) {
+				$this->selectField($field->name);
 			}
 		}
 	}
@@ -74,7 +73,7 @@ class Query extends BaseQuery {
 	 * @return Query a query on the same table with the same alias for using in whereAndQuery or whereOrQuery
 	 */
 	public function getSubQuery() {
-		$subQuery = new Query($this->_salt_obj);
+		$subQuery = $this->_salt_obj->query();
 		$subQuery->_salt_alias = $this->_salt_alias;
 		return $subQuery;
 	}
@@ -113,7 +112,7 @@ class Query extends BaseQuery {
 		} else if (!is_string($field)) {
 			throw new SaltException('A field name is expected');
 		} else {
-			$sqlExpr = $this->getField($field);
+			$sqlExpr = $this->$field;
 		}
 
 		if ($sqlExpr->getType() === FieldType::DATE) {
@@ -225,7 +224,7 @@ class Query extends BaseQuery {
 			$objects = array($objects);
 		}
 
-		$idField = $this->_salt_obj->getIdField();
+		$idField = $this->_salt_obj->MODEL()->getIdFieldName();
 		$class = get_class($this->_salt_obj);
 
 		$allIds = array();
@@ -290,23 +289,9 @@ class Query extends BaseQuery {
 	}
 
 	/**
-	 * Get a field as a SqlExpr for reuse it in another query / SqlExpr
-	 * @param string $field the field name to get
-	 * @return SqlExpr the SqlExpr of the field
-	 * @deprecated call $q->&lt;fieldName> instead of $q->getField('&lt;fieldName>')
-	 */
-	public function getField($field) {
-		if ($this->_salt_noAlias) {
-			return SqlExpr::field(NULL, $this->_salt_obj->getField($field));
-		} else {
-			return SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($field));
-		}
-	}
-
-	/**
 	 * Get a selected expression added in query by an alias for reuse it
 	 *
-	 * Example : <pre>$query->select(SqlExpr::func('count', '*'), 'nb');
+	 * Example : <pre>$query->select(SqlExpr::_count('*'), 'nb');
 	 * $query->orderDesc($query->getSelect('nb'));</pre>
 	 * @param string $alias name of an alias
 	 * @return SqlExpr the expression for this alias
@@ -391,7 +376,7 @@ class Query extends BaseQuery {
 	 * @throws SaltException if this join already exists
 	 */
 	public function join(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER') {
-		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, $other->_salt_obj->getTableName());
+		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, $other->_salt_obj->MODEL()->getTableName());
 	}
 
 	/**
@@ -411,7 +396,6 @@ class Query extends BaseQuery {
 		}
 
 		$this->_salt_joins[$other->_salt_alias]=array(
-			'meta'=>$other->_salt_obj->getFieldsMetadata(),
 			'type'=>strtoupper($type),
 			'table'=>$table,
 			'on'=>array(),
@@ -584,9 +568,9 @@ class Query extends BaseQuery {
 	 */
 	protected function resolveTable() {
 		if ($this->_salt_noAlias) {
-			return $this->_salt_obj->getTableName();
+			return $this->_salt_obj->MODEL()->getTableName();
 		}
-		return $this->_salt_obj->getTableName().' '.$this->_salt_alias;
+		return $this->_salt_obj->MODEL()->getTableName().' '.$this->_salt_alias;
 	}
 
 	/**
@@ -715,15 +699,18 @@ class Query extends BaseQuery {
 		return $sql;
 	}
 	
-
 	/**
-	 * Retrieve a field of the object of the query
+	 * Retrieve a field as an SqlExpr for reuse it in another query / SqlExpr
 	 * @param string $fieldName name of the field
 	 * @return SqlExpr the field as an SqlExpr
 	 */
 	public function __get($fieldName) {
 		// do NOT register field on object for avoid next access because the SqlExpr return object
 		// is modifiable outside but this method always have to return a clean SqlExpr
-		return $this->getField($fieldName);
+		if ($this->_salt_noAlias) {
+			return SqlExpr::field(NULL, $this->_salt_obj->MODEL()->$fieldName);
+		} else {
+			return SqlExpr::field($this->_salt_alias, $this->_salt_obj->MODEL()->$fieldName);
+		}
 	}
 }

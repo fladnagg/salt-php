@@ -75,27 +75,6 @@ class SqlExpr extends SqlBindField {
 	}
 
 	/**
-	 * Create a new SqlExpr for an SQL function
-	 * @param string $name name of the function
-	 * @param mixed|SqlExpr ... $args list of function arguments. All arg that is not a SqlExpr is converted with SqlExpr::value($arg)
-	 * @return SqlExpr
-	 * @deprecated call SqlExpr::_&lt;funcName>(args) instead of SqlExpr::func('&lt;funcName>', args)
-	 */
-	public static function func($name, $args = NULL) {
-
-		$args = func_get_args();
-		$func = array_shift($args);
-		foreach($args as $k => $arg) {
-			if (!($arg instanceof SqlExpr)) {
-				$args[$k] = SqlExpr::value($arg);
-			}
-		}
-		array_unshift($args, $func);
-
-		return new SqlExpr(self::FUNC, $args);
-	}
-
-	/**
 	 * Create a new SqlExpr for a value
 	 * @param mixed $value value to transform in SqlExpr. Can be NULL
 	 * @return SqlExpr
@@ -543,6 +522,7 @@ class SqlExpr extends SqlBindField {
 			$params=array();
 			/** @var SqlExpr $arg */
 			foreach($args as $arg) {
+				$a = $arg->toSQL();
 				$params[] = $arg->toSQL();
 				$this->linkBindsOf($arg);
 			}

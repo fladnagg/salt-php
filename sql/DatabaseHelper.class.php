@@ -21,7 +21,7 @@ class DatabaseHelper {
 	public static function missingTables(DBHelper $db, array $classNames) {
 		$allTables = array();
 		foreach($classNames as $class) {
-			$obj = $class::meta();
+			$obj = $class::singleton();
 			$allTables[$obj->getTableName(FALSE)] = $obj;
 		}
 

@@ -135,7 +135,7 @@ class BaseViewHelper extends Identifiable implements ViewHelper {
 	public function getObject() {
 		if ($this->object === NULL) {
 			$class = $this->class;
-			$this->object = $class::meta();
+			$this->object = $class::singleton();
 		}
 		return $this->object;
 	}

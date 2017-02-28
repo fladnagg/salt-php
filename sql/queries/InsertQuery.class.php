@@ -65,7 +65,7 @@ class InsertQuery extends BaseQuery {
 
 			$sets = array();
 			foreach($this->_salt_fields as $f) {
-				$expr = SqlExpr::value($o->$f)->asSetter($this->_salt_obj->getField($f));
+				$expr = SqlExpr::value($o->$f)->asSetter($this->_salt_obj->MODEL()->$f);
 				$sets[$f] = $this->resolveFieldName(ClauseType::INSERT, $expr);
 				//$this->binds = array_merge($this->binds, $expr->getBinds()); // already done by resolveFieldName
 			}
@@ -88,7 +88,7 @@ class InsertQuery extends BaseQuery {
 	 * @see \salt\SqlBindField::buildSQL()
 	 */
 	protected function buildSQL() {
-		$sql='INSERT INTO '.$this->_salt_obj->getTableName();
+		$sql='INSERT INTO '.$this->_salt_obj->MODEL()->getTableName();
 
 		$sql.=' (`'.implode('`, `', $this->_salt_fields).'`)';
 

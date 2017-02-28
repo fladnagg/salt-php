@@ -17,7 +17,6 @@ class Dual extends Base {
 	 * @see \salt\Base::metadata()
 	 */
 	protected function metadata() {
-		parent::registerTableName('dual');
-		return array();
+		self::MODEL()->registerTableName('dual');
 	}
 }

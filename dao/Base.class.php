@@ -31,15 +31,14 @@ abstract class Base extends Identifiable {
 	const _SALT_STATE_READONLY=50;
 
 	/**
-	 * @var mixed[] Metadata of all classes
-	 * @content <pre>array of class name => array(
-	 * 		'fields' => array(field name => Field),
-	 * 		'tablename' => table name,
-	 * 		'idfield' => id field name,
-	 * 		'singleton' => empty instance,
-	 * )</pre> */
-	private static $_saltMetadata = array();
-
+	 * @var Base object by child class name. Used in ::singleton() 
+	 */
+	private static $_saltSingletons = array();
+	
+	/**
+	 * @var Model models of dao class.
+	 */
+	private static $_saltModels = NULL;
 	/**
 	 * @var mixed[] Modified values for object loaded from database
 	 * @content array of fieldName => value */
@@ -68,10 +67,10 @@ abstract class Base extends Identifiable {
 	/**
 	 * Register metadata of object
 	 *
-	 * Sub classes have to implement this method for declaring all metadata
-	 * @return Field[]
-	 * @see Base::registerTableName()
-	 * @see Base::registerId()
+	 * Sub classes have to implement this method for declaring all metadata by calling ::MODEL()->register...
+	 * @see Model::registerTableName()
+	 * @see Model::registerId()
+	 * @see Model::registerFields()
 	 * @see Base::registerHelper()
 	 * @see Field
 	 */
@@ -94,20 +93,63 @@ abstract class Base extends Identifiable {
 	 */
 	public function __construct(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
 		parent::__construct();
-		$extras = $this->initMetadata($loadedFields, $extraFields, $loadAsNew);
+		$extras = $this->initValues($loadedFields, $extraFields, $loadAsNew);
 	}
 
 	/**
-	 * Retrieve a singleton instance for access to metadata
+	 * Retrieve the Model object containing metadata about the object
+	 * @param boolean $withLoad (Optionnal, TRUE) if TRUE, initialize the model if not exists. Never use in normal usage, only for internal usage
+	 * @return Model the Model object
+	 */
+	public static function MODEL($withLoad = TRUE) {
+		$child = get_called_class();
+		if (!isset(self::$_saltModels[$child])) {
+			self::$_saltModels[$child] = new Model($child);
+			if ($withLoad) {
+				// create an object will be call initValues, that call metadata() and initialize MODEL 
+				new $child(); 
+			}
+		}
+		return self::$_saltModels[$child];
+	}
+
+	/**
+	 * Retrieve a singleton instance
 	 * @return static a singleton instance of the object
 	 */
-	public static function meta() {
+	public static function singleton() {
 		$child = get_called_class();
-		if (!isset(self::$_saltMetadata[$child]['singleton'])) {
-			self::$_saltMetadata[$child]['singleton'] = new $child();
-			self::$_saltMetadata[$child]['singleton']->readonly();
+		if (!isset(self::$_saltSingletons[$child])) {
+			self::$_saltSingletons[$child] = new $child();
+			self::$_saltSingletons[$child]->readonly();
 		}
-		return self::$_saltMetadata[$child]['singleton'];
+		return self::$_saltSingletons[$child];
+	}
+	
+	/**
+	 * Return a SELECT query on object
+	 * @param string $withField TRUE for retrieve all fields, FALSE otherwise
+	 * @return Query the empty query object
+	 */
+	public static function query($withField = FALSE) {
+		return new Query(self::singleton(), $withField);
+	}
+	
+	/**
+	 * Return a generic UPDATE query on object
+	 * @param Query $fromQuery the query to use for update
+	 * @return UpdateQuery the update query
+	 */
+	public static function updateQuery($fromQuery = NULL) {
+		return new UpdateQuery(self::singleton(), $fromQuery);
+	}
+	
+	/**
+	 * Return a generic DELETE query on object
+	 * @return DeleteQuery the delete query
+	 */
+	public static function deleteQuery() {
+		return new DeleteQuery(self::singleton());
 	}
 
 	/**
@@ -127,18 +169,11 @@ abstract class Base extends Identifiable {
 	 */
 	public function addExtraField($extraField) {
 		$child = get_called_class();
-		if (isset(self::$_saltMetadata[$child]['fields'][$extraField])) {
+		if (self::MODEL()->exists($extraField)) {
 			throw new SaltException('The field ['.$extraField.'] already exists');
 		}
 		$this->_saltExtraFields[$extraField] = NULL;
 		$this->_saltExtraFieldsMetadata[$extraField] = Field::newText($extraField, $extraField, TRUE);
-	}
-
-	/**
-	 * Get all Field declared in ::metadata()
-	 * @return Field[] list of all Field metadata : fieldName => Field */
-	public function getFieldsMetadata() {
-		return self::$_saltMetadata[get_called_class()]['fields'];
 	}
 
 	/**
@@ -147,7 +182,7 @@ abstract class Base extends Identifiable {
 	 * @return string the table name
 	 */
 	public function getTableName($withEscape = TRUE) {
-		$table = self::$_saltMetadata[get_called_class()]['tablename'];
+		$table = self::MODEL()->getTableName();
 		if ((strtolower($table) !== 'dual') && (strpos($table, '.') === FALSE) && $withEscape) { // special value
 			$table = SqlBindField::escapeName($table);
 		}
@@ -166,7 +201,7 @@ abstract class Base extends Identifiable {
 	 * Get the name of the ID field registered with ::registerId()
 	 * @return string field name */
 	public function getIdField() {
-		return self::$_saltMetadata[get_called_class()]['idfield'];
+		return self::MODEL()->getIdFieldName();
 	}
 
 	/**
@@ -176,9 +211,8 @@ abstract class Base extends Identifiable {
 	 * @return static|NULL the first object with this id. All fields are loaded. Return NULL if no object found
 	 */
 	public static function getById(DBHelper $db, $id) {
-		$meta  = static::meta();
-		$q = new Query($meta, TRUE);
-		$q->whereAnd($meta->getIdField(), '=', $id);
+		$q = static::query(TRUE);
+		$q->whereAnd(static::MODEL()->getIdFieldName(), '=', $id);
 		$r = $db->execQuery($q);
 		return first($r->data);
 	}
@@ -190,9 +224,8 @@ abstract class Base extends Identifiable {
 	 * @return static[] associative array : id => object
 	 */
 	public static function getByIds(DBHelper $DB, array $ids) {
-		$meta = static::meta();
-		$q = new Query($meta, TRUE);
-		$idField = $meta->getIdField();
+		$q = static::query(TRUE);
+		$idField = static::MODEL()->getIdFieldName();
 		$q->whereAnd($idField , 'IN', $ids);
 		$q->disableIfEmpty($ids);
 		$r = $DB->execQuery($q);
@@ -201,24 +234,6 @@ abstract class Base extends Identifiable {
 			$result[$obj->$idField] = $obj;
 		}
 		return $result;
-	}
-
-	/**
-	 * Register the fieldName will be returned by getId()
-	 * @param string $fieldName a field name registered in metadata()
-	 *
-	 * @see Base::getId() */
-	public static function registerId($fieldName) {
-		$child = get_called_class();
-		self::$_saltMetadata[$child]['idfield'] = $fieldName;
-	}
-
-	/**
-	 * Register the table name of the object in database
-	 * @param string $table the table name that will be used in query generation */
-	public static function registerTableName($table) {
-		$child = get_called_class();
-		self::$_saltMetadata[$child]['tablename'] = $table;
 	}
 
 	/**
@@ -234,18 +249,14 @@ abstract class Base extends Identifiable {
 	 * @param string[] $extraFields fields to add to new instance only
 	 * @param boolean $loadAsNew if TRUE, the afterLoad() method set the state to NEW instead of LOADED
 	 */
-	private function initMetadata(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
-		$child = get_called_class();
-
-		if (!isset(self::$_saltMetadata[$child])) {
-			self::$_saltMetadata[$child]['fields']=array();
-			$meta = $this->metadata();
- 			if (is_array($meta) && (count($meta) > 0) && (first($meta) instanceof Field)) {
-				foreach($meta as $field) {
-					self::$_saltMetadata[$child]['fields'][$field->name] = $field;
-				}
- 			}
+	private function initValues(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
+		$model = self::MODEL(FALSE);
+		
+		if (!$model->initialized()) {
+			$this->metadata(); // populate Model
+			$model->setInitialized();
 		}
+
 		if ($this->_saltState === self::_SALT_STATE_NONE) {
 			if (($loadedFields === NULL) || $loadAsNew) {
 				if ($loadAsNew) {
@@ -254,28 +265,28 @@ abstract class Base extends Identifiable {
 				} else {
 					$this->_saltState = self::_SALT_STATE_NEW;
 				}
-
+		
 				// for manually created new object, load all default values
-				foreach(self::$_saltMetadata[$child]['fields'] as $key => $field) {
-					$this->_saltLoadValues[$key]=$field->defaultValue;
+				foreach($model->getFields() as $fieldName => $field) {
+					$this->_saltLoadValues[$fieldName]=$field->defaultValue;
 					if ($field->defaultValue !== NULL) {
-						$this->_saltValues[$key]=$field->defaultValue; // for create in INSERT statement
+						$this->_saltValues[$fieldName]=$field->defaultValue; // for create in INSERT statement
 					}
 				}
-
+		
 				if ($extraFields !== NULL) {
 					foreach($extraFields as $field) {
-						if (!isset(self::$_saltMetadata[$child]['fields'][$field])) {
+						if (!$model->exists($field)) {
 							$this->_saltExtraFields[$field] = NULL;
 							$this->_saltExtraFieldsMetadata[$field] = Field::newText($field, $field, TRUE);
 						}
 					}
 				}
-
+		
 			} else {
 				$this->_saltState = self::_SALT_STATE_LOADING; // for query loaded object, define all loaded fields
 				foreach($loadedFields as $field) {
-					if (isset(self::$_saltMetadata[$child]['fields'][$field])) {
+					if ($model->exists($field)) {
 						$this->_saltLoadValues[$field] = NULL; // will be loaded by setter later
 					} else {
 						$this->_saltExtraFields[$field] = NULL;
@@ -284,8 +295,7 @@ abstract class Base extends Identifiable {
 				}
 			} // else $loadedFields === NULL
 		} // if _SALT_STATE_NONE
-
-	} // function initMetadata
+	}
 
 	/**
 	 * Retrieve a Field by field name
@@ -301,8 +311,7 @@ abstract class Base extends Identifiable {
 			return $this->_saltExtraFieldsMetadata[$fieldName];
 		}
 
-		$child = get_class($this);
-		return self::$_saltMetadata[$child]['fields'][$fieldName];
+		return self::MODEL()->$fieldName;
 	}
 
 	/**
@@ -314,7 +323,7 @@ abstract class Base extends Identifiable {
 	 * @throws SaltException if field don't exists or is not loaded (if $forValue)
 	 */
 	private function checkFieldExists($fieldName, $forValue = FALSE, $doNotThrowException = FALSE) {
-		$this->initMetadata();
+		$this->initValues();
 
 		$child = get_class($this);
 
@@ -322,7 +331,7 @@ abstract class Base extends Identifiable {
 		if (array_key_exists($fieldName, $this->_saltExtraFields)) {
 			return;
 		}
-		if (!isset(self::$_saltMetadata[$child]['fields'][$fieldName])) {
+		if (!self::MODEL()->exists($fieldName)) {
 			if ($doNotThrowException) {
 				return FALSE;
 			}
@@ -454,7 +463,7 @@ abstract class Base extends Identifiable {
 
 	/**
 	 * Check object is a readonly object
-	 * @return boolean TRUE if the object is readonly (Base::meta() is a readonly object)
+	 * @return boolean TRUE if the object is readonly (Base::singleton() is a readonly object)
 	 */
 	public function isReadonly() {
 		return ($this->_saltState === self::_SALT_STATE_READONLY);
@@ -519,7 +528,7 @@ abstract class Base extends Identifiable {
 	 * @return string ViewHelper HTML protected text to display for $fieldName in $format
 	 */
 	public static function COLUMN($fieldName, $format=NULL) {
-		$field = self::meta()->getField($fieldName, TRUE);
+		$field = self::singleton()->getField($fieldName, TRUE);
 		return BaseViewHelper::getInstance(get_called_class())->column($field, $format);
 	}
 

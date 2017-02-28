@@ -21,3 +21,18 @@ SALT (Simple And LighT) framework in PHP
 [https://salt-php.org](https://salt-php.org) in french
 
 
+### Migration from 0.8.0
+A lot of API changes : 
+- new Query(Base::meta()) became Base::query()
+- new UpdateQuery(Base::meta()) became Base::updateQuery()
+- new DeleteQuery(Base::meta()) became Base::deleteQuery()
+- Base::meta() became Base::MODEL() for access metadata
+- Base::meta() became Base::singleton() for other rare usages
+- metadata() implementation have to call MODEL() methods
+- $query->getField('fieldName') became $query->fieldName
+- $object->getField('fieldName') became $object::MODEL()->fieldName for all fields declared in metadata(). $object->getField('fieldName') can still be used for extra fields
+- $object->getFieldsMetadata() became $object::MODEL()->getFields()
+- SqlExpr::func(sqlFunc, args) became SqlExpr::_sqlFunc(args)
+
+
+
