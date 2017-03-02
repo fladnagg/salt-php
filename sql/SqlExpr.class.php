@@ -109,13 +109,8 @@ class SqlExpr extends SqlBindField {
 		$values = array_fill(0, count($args), self::TEMPLATE_PARAM);
 		$template = implode($separator, $values);
 		
-		$params = array();
-		foreach($args as $arg) {
-			if (!($arg instanceof SqlExpr)) {
-				$arg = SqlExpr::value($arg);
-			}
-			$params[] = $arg;
-		}
+		$params = self::arrayToSqlExpr($args);
+
 		$result = SqlExpr::text('');
 		$result->template[] = array($template, $params);
 		return $result;
@@ -129,6 +124,19 @@ class SqlExpr extends SqlBindField {
 		return $this->template('('.self::TEMPLATE_MAIN.')');
 	}
 
+	/**
+	 * Construct a tuple with parameters : (arg1, arg2, ...)
+	 * @param mixed|SqlExpr $args ... 
+	 * @return SqlExpr current object 
+	 */
+	public static function tuple($args) {
+		$args = func_get_args();
+		$args = self::arrayToSqlExpr($args);
+		array_unshift($args, '');
+		$expr = new SqlExpr(self::FUNC, $args);
+		return $expr->parenthesis();
+	}
+	
 	/**
 	 * Create a new SqlExpr for a field
 	 *
@@ -267,13 +275,9 @@ class SqlExpr extends SqlBindField {
 	public function template($template, $args = NULL) {
 		$args = func_get_args();
 		array_shift($args);
-		$params = array();
-		foreach($args as $arg) {
-			if (!($arg instanceof SqlExpr)) {
-				$arg = SqlExpr::value($arg);
-			}
-			$params[] = $arg;
-		}
+		
+		$params = self::arrayToSqlExpr($args);
+
 		$this->template[] = array($template, $params);
 		return $this;
 	}
@@ -390,6 +394,22 @@ class SqlExpr extends SqlBindField {
 	}
 
 	/**
+	 * Convert an array of mixed elements in SqlExpr.
+	 * If element is not already an SqlExpr, it will be converted with SqlExpr::value
+	 * 
+	 * @param mixed[] $args all elements
+	 * @return SqlExpr[] list of SqlExpr
+	 */
+	private static function arrayToSqlExpr($args) {
+		foreach($args as $k => $arg) {
+			if (!($arg instanceof SqlExpr)) {
+				$args[$k] = SqlExpr::value($arg);
+			}
+		}
+		return $args;
+	}
+	
+	/**
 	 * Create a new SqlExpr for an SQL function
 	 * @param string $func name of the SQL function with an underscore prefix for avoid collision with PHP keywords or other defined functions
 	 * @param mixed|SqlExpr ... $args list of function arguments. All arg that is not a SqlExpr is converted with SqlExpr::value($arg)
@@ -400,11 +420,7 @@ class SqlExpr extends SqlBindField {
 			
 			$func = substr($func, 1);
 
-			foreach($args as $k => $arg) {
-				if (!($arg instanceof SqlExpr)) {
-					$args[$k] = SqlExpr::value($arg);
-				}
-			}
+			$args = self::arrayToSqlExpr($args);
 			array_unshift($args, $func);
 			
 			return new SqlExpr(self::FUNC, $args);
