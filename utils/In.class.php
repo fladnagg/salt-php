@@ -18,7 +18,7 @@ use \Exception;
 *	- Input sources (types) : GET, POST, COOKIE, FILES, SERVER, REQUEST, ENV, SESSION, local variables
 *	- Output format : SQL, HTML, URL, RAW, Base64, ISSET, SET
 *	- Format a input variable for an output format
-*	- Array variables (each element are formated)
+*	//- Array variables (each element are formated)
 *	- Cached variables for performance
 *	- Exception or not if variable don't exist (configuration)
 *	- Charset can be specified
@@ -66,6 +66,10 @@ use \Exception;
 *
 * <br/><u>History</u>
 * <blockquote>
+*	1.8 (03/03/2017) <blockquote>
+*		Remove array format feature : Allow this class to process array and scalar values on different ways is error prone.
+*			We can use RAW for retrieve unformated array values, and a loop for formatting each values.
+*	<blockquote>
 *	1.7 (15/08/2016) <blockquote>
 *		Translate in english
 *	</blockquote>
@@ -98,7 +102,7 @@ use \Exception;
 * </blockquote>
 * </pre>
 * @author	Richaud Julien "Fladnag"
-* @version	1.7
+* @version	1.8
 */
 class In {
 
@@ -275,7 +279,6 @@ class In {
 		} else if (($this->_saltType === self::_SALT_INSTANCE_FORMAT) && ($this->_saltName === 'SET')) {
 			$array = static::$_saltRegistry[self::_SALT_INSTANCE_TYPE][$this->_saltParent->_saltName];
 			global ${$array};
-
 			${$array}[$var] = $value;
 
 			$this->_saltParent->invalidCache($var);
@@ -311,11 +314,7 @@ class In {
 						return NULL;
 					} else {
 						$value = ${$array}[$var];
-						if (is_scalar($value)) {
-							$this->setCache($var, forward_static_call(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName], $value));
-						} else if (is_array($value)) {
-							$this->setCache($var, array_map(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName], $value));
-						}
+						$this->setCache($var, forward_static_call(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName], $value));
 					}
 				}
 			} else {
@@ -414,9 +413,9 @@ class In {
 	/**
 	 * SQL format definition
 	 *
-	 * We recommand to use binds and prepared queries instead of this format
 	 * @param string $var value to convert
 	 * @return string value formatted with mysql_real_escape_string (need an active connexion to a MySQL database)
+	 * @deprecated Use prepared queries with PDO for example instead of this format
 	 */
 	public static function SQL($var) {
 		return mysql_real_escape_string($var);
