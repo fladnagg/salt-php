@@ -20,6 +20,11 @@ class DBHelper {
 	 * @var \PDO instance of DB connexion
 	 */
 	private $base = NULL;
+	
+	/**
+	 * @var string type of instance
+	 */
+	private $type = NULL;
 
 	/**
 	 * @var int transaction level. 0 is effective level
@@ -47,9 +52,11 @@ class DBHelper {
 	/**
 	 * Create a new DBHelper
 	 * @param \PDO $pdo the PDO instance to use in this DBHelper instance
+	 * @param string $type type of the instance 
 	 */
-	private function __construct(PDO $pdo) {
+	private function __construct(PDO $pdo, $type) {
 		$this->base = $pdo;
+		$this->type = $type;
 	}
 /*
   try {
@@ -126,7 +133,7 @@ class DBHelper {
 				throw new SaltException('Unknown database '.$type.'. Please register it before using.');
 			}
 			try {
-				$helper = new DBHelper(self::$allDatas[$type]->connect());
+				$helper = new DBHelper(self::$allDatas[$type]->connect(), $type);
 			} catch (\PDOException $ex) {
 				throw new SaltException('Unable to connect to database '.$type, $ex->getCode(), $ex);
 			}
@@ -377,7 +384,7 @@ class DBHelper {
 			$expected = $query->getInsertObjectCount();
 	
 			$changedRows = $st->rowCount();
-			if ($expected !== $changedRows) {
+			if (($expected > 0) && ($expected !== $changedRows)) {
 				throw new RowCountException('Query have inserted '.$changedRows.' rows instead of expected '.$expected.'.',
 						$query->toSQL(), $changedRows, $expected);
 			}
@@ -534,6 +541,23 @@ class DBHelper {
 			}
 		}
 	}
+	
+	/**
+	 * Return database name
+	 * @param string $type id of a previously registered database, or NULL for default registered database
+	 * @return string database name
+	 * @throws SaltException if $type is unknown
+	 */
+	public static function getDatabase($type = NULL) {
+		if ($type === NULL) {
+			$type = self::$default;
+		}
+		if (!isset(self::$allDatas[$type])) {
+			throw new SaltException('Unknown database '.$type.'. Please register it before using.');
+		}
+		
+		return self::$allDatas[$type]->getDatabase();
+	}
 } // DBHelper
 
 
@@ -632,5 +656,13 @@ class DBConnexion {
 			return FALSE;
 		}
 		return TRUE;
+	}
+	
+	/**
+	 * Retrieve database name
+	 * @return string database name
+	 */
+	public function getDatabase() {
+		return $this->db;
 	}
 }

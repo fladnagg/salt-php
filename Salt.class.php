@@ -281,6 +281,7 @@ class Salt {
 	 */
 	public static function getClassesByPath($path) {
 		$result = array();
+
 		foreach(self::$ALL_CLASSES as $className => $p) {
 			if (strpos($p, $path) === 0) {
 				$result[$className] = $p;

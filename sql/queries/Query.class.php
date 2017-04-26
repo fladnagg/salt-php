@@ -47,6 +47,11 @@ class Query extends BaseQuery {
 	protected $_salt_noAlias = FALSE;
 	
 	/**
+	 * @var string database to use in table prefix
+	 */
+	protected $_salt_database = NULL;
+	
+	/**
 	 * Create a new SELECT query
 	 * @param Base $obj object for query creation
 	 * @param boolean $withField TRUE for load all the fields
@@ -363,7 +368,7 @@ class Query extends BaseQuery {
 	 * @throws SaltException if this join already exists
 	 */
 	public function joinSelect(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER') {
-		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, '( '.$other->toSQL().' )', FALSE);
+		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, '( '.$other->toSQL().' ) '.$other->_salt_alias, FALSE);
 	}
 
 	/**
@@ -376,7 +381,7 @@ class Query extends BaseQuery {
 	 * @throws SaltException if this join already exists
 	 */
 	public function join(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER') {
-		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, $other->_salt_obj->MODEL()->getTableName());
+		$this->addJoin($other, $fieldOrExpr, $operator, $valueOrExpr, $type, $other->resolveTable());
 	}
 
 	/**
@@ -386,7 +391,7 @@ class Query extends BaseQuery {
 	 * @param string $operator operator of ON clause
 	 * @param mixed|SqlExpr $valueOrExpr value of ON clause
 	 * @param string $type type of join: 'INNER', 'OUTER', etc...
-	 * @param string $table object to join with : table name of subquery
+	 * @param string $table object to join with : table name or subquery, with alias
 	 * @param boolean $withOtherDatas TRUE if we have to add fields, where, group by, order clause to main query
 	 * @throws SaltException if this join already exists
 	 */
@@ -563,14 +568,33 @@ class Query extends BaseQuery {
 	}
 
 	/**
+	 * Use database name in table reference.
+	 * Can be used to make join between tables of different database in same schema
+	 * 
+	 * @param string $database the name of the other database
+	 * @return static current query
+	 */
+	public function absoluteDatabase($database) {
+		$this->_salt_database = $database;
+		return $this;
+	}
+	
+	/**
 	 * get the table name for the query
 	 * @return string table name, with or without alias (depends on noAlias)
 	 */
 	protected function resolveTable() {
-		if ($this->_salt_noAlias) {
-			return $this->_salt_obj->MODEL()->getTableName();
+		
+		$tableName = $this->_salt_obj->MODEL()->getTableName();
+		
+		if ($this->_salt_database !== NULL) {
+			$tableName = SqlBindField::escapeName($this->_salt_database).'.'.$tableName;
 		}
-		return $this->_salt_obj->MODEL()->getTableName().' '.$this->_salt_alias;
+		
+		if ($this->_salt_noAlias) {
+			return $tableName;
+		}
+		return $tableName.' '.$this->_salt_alias;
 	}
 
 	/**
@@ -620,7 +644,7 @@ class Query extends BaseQuery {
 		$sql='';
 		if (count($this->_salt_joins)>0) {
 			foreach($this->_salt_joins as $alias => $join) {
-				$sql.=' '.$join['type'].' JOIN '.$join['table'].' '.$alias.' ON '.implode(' ', $join['on']);
+				$sql.=' '.$join['type'].' JOIN '.$join['table'].' ON '.implode(' ', $join['on']);
 			}
 		}
 		return $sql;
