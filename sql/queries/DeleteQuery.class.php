@@ -47,7 +47,7 @@ class DeleteQuery extends UpdateQuery {
 
 		$this->_salt_objects = $notReadonlyObjects;
 
-		$this->_salt_noAlias = TRUE;
+		//$this->_salt_noAlias = TRUE;
 	}
 
 	/**
@@ -63,7 +63,7 @@ class DeleteQuery extends UpdateQuery {
 	 * @see salt\SqlBindField::buildSQL() 
 	 */
 	protected function buildSQL() {
-		$sql='DELETE FROM '.$this->resolveTable();
+		$sql='DELETE '.$this->_salt_alias.' FROM '.$this->resolveTable();
 
 		if (!$this->_salt_allowMultiple) {
 			$deletedObjects = array();
