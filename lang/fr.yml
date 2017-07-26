@@ -1,0 +1,76 @@
+
+error:
+  not_implemented: Non implémenté.
+
+  db:
+    unknown: Base de donnée %s inconnue. Merci de l'enregistrer avant de l'utiliser.
+    connect: Impossible de se connecter à la base de données %s.
+    default_already_registered: La base de données par défaut est déjà enregistrée.
+    
+  query:
+    fetch: Erreur lors du remplissage d'un objet pendant la récupération des données de la requête %s.
+    expected:
+      insert: La requête a ajouté %s lignes au lieu des %s attendues.
+      delete: La requête a supprimé %s lignes au lieu des %s attendues.
+      update: La requête a modifié %s lignes au lieu des %s attendues.
+    missing_where: Aucune clause WHERE n'a été défini sur la requête %s. Merci d'appeler allowEmptyWhere() si c'est réellement souhaité.
+    missing_alias: Impossible de retrouver l'alias [%s] dans la requête.
+    mixed_types: Impossible de prendre en compte des types d'objets différents en même temps. Le premier objet est de type [%s]. Un autre objet de la liste est de type [%s].
+    mixed_objects: Impossible d'utiliser un objet de type %s dans une requête sur des objets de type %s.
+    mixed_subquery: Impossible d'utiliser une sous requête portant sur une table différente de la requête principale.
+    select:
+      expr: Seuls les SqlExpr de type Field peuvent être utilisée dans une clause SELECT.
+      fieldname: Un nom de champ est attendu.
+      missing_join: Il n'y a pas de requête avec l'alias [%s] dans les clauses JOIN. On ne peux pas ajouter le champ %s à la clause SELECT.
+      missing_alias: Merci de fournir un alias pour le champ %s.
+    duplicate_join: Une clause JOIN avec le même alias [%s] existe déjà.
+    missing_join: Il n'y a pas de clause JOIN avec l'alias [%s].
+    insert_select_missing_column: La requête SELECT renvoi la colonne [%s] qui n'existe pas dans l'objet [%s].
+    insert_not_new: Impossible d'insérer des objets qui ne sont pas à l'état NEW.
+    insert_mixed_fields: Impossible d'insérer des objets qui n'ont pas les mêmes champs modifiés. Le premier objet a pour champs modifiés [%s], alors qu'un autre objet a pour champs modifiés [%s].
+
+  sql:
+    date_without_format: Vous devez définir un format pour une expression de type date.
+    timestamp_without_format: Vous devez définir un format pour une expression de type timestamp.
+    bad_function: "%s n'est pas une fonction SQL valide. Pour éviter les collisions avec les mots clés PHP et les méthodes existantes, les fonctions SQL doivent commencer par un underscore : _IF, _MAX, etc..."
+    null_value: "Impossible de positionner à NULL un champ qui ne peut pas l'être : %s."
+    text_complex_value: Impossible d'utiliser autre chose qu'une valeur simple avec la méthode text().
+    template_placeholder_mismatch: Le template [%s] contient %s valeurs à remplacer mais avec %s paramètres.
+    change_after_resolve: Une requête ne peut pas être modifiée après avoir été résolue.
+
+  model:
+    change_after_initialized: Un modèle ne peux pas être modifié après avoir été initialisé.
+    date_without_store_format: Vous devez définir un format de stockage pour les champs de type date.
+    format_but_not_date: Le format de stockage ne peut être défini que pour les champs de type date.
+    field:
+      reserved_word: Le champ [%s] ne peut pas être ajouté car il commence par un mot réservé. Merci de définir un useName valide.
+      useless_usename: Le champ [%s] défini un useName inutilement. Le champ n'est PAS un mot reservé. Merci d'enlever le useName.
+      usename_reserved_word: Le champ [%s] ne peux pas être ajouté car il défini un useName qui est aussi un mot reservé. Merci d'utiliser un useName valide.
+      cannot_be_null: La valeur NULL n'est pas autorisée pour le champ [%s].
+      value_not_expected: "La valeur [%s] n'est pas autorisée pour le champs [%s]. Valeurs possibles : %s."
+      not_number: La valeur [%s] doit être un nombre.
+      not_boolean: La valeur [%s] doit être un booléen.
+      not_timestamp: La valeur [%s] doit être un timestamp.
+      already_exists: Le champ [%s] existe déjà.
+      unknown: Le champ [%s] n'existe pas dans la classe [%s].
+      not_loaded: Le champ [%s] n'est pas chargé dans la classe [%s].
+    state: L'objet est dans l'état [%s] au lieu d'un des états attendus [%s].
+    state_forbidden: L'objet est dans un état interdit [%s].
+    change_readonly: Il est interdit de modifier un objet en lecture seule.
+    change_deleted: Il est interdit de modifier un objet supprimé.
+    readonly_on_modified: Impossible de positionner un objet en lecture seule une fois qu'il a été modifié.
+
+  tx:
+    create_table: Impossible de créer une table dans une transaction.
+    begin: Impossible de démarrer une nouvelle transaction.
+    no_transaction: Aucune transaction en cours.
+    commit: Erreur lors du commit.
+    rollback: Erreur lors du rollback.
+    pending: Une transaction est toujours en cours pour la base de données [%s]. Merci de la fermer correctement avant de quitter la page.
+
+  view:
+    missing_form: Merci d'appeler FormHelper::get() ou FormHelper::post() avant d'utiliser les autres API de FormHelper.
+
+view:
+  yes: Oui
+  no: Non

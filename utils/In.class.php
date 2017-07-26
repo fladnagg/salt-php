@@ -9,6 +9,8 @@ namespace salt;
 
 use \Exception;
 
+// In is not translated with I18n for keeping it independant of other class of SALT framework
+
 /**
 * Input and Output variables - Require PHP 5.3.0
 *

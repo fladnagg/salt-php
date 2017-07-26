@@ -24,7 +24,7 @@ class UpdateQuery extends Query {
 	 * @var boolean TRUE for allow and empty WHERE clause
 	 */
 	protected $_salt_allowEmptyWhere = FALSE;
-	
+
 	/**
 	 * Create a new UPDATE query
 	 *
@@ -40,7 +40,7 @@ class UpdateQuery extends Query {
 			$this->_salt_joins = $fromQuery->_salt_joins;
 			$this->_salt_wheres = $fromQuery->_salt_wheres;
 			$this->_salt_orders = $fromQuery->_salt_orders;
-			
+
 			$this->linkBindsOf($fromQuery);
 		}
 
@@ -54,17 +54,21 @@ class UpdateQuery extends Query {
 	/**
 	 * Allow the query to have an "open" WHERE clause, without the clause on object id added automatically
 	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again multiple update after an allow
+	 * @param return current query
 	 */
 	public function allowMultipleChange($value = TRUE) {
 		$this->_salt_allowMultiple = $value;
+		return $this;
 	}
 
 	/**
 	 * Allow the query to have an empty WHERE clause, which will update all objects in table.
 	 * @param boolean $value Optional : TRUE. Use FALSE for forbidden again empty where after an allow
+	 * @param return current query
 	 */
 	public function allowEmptyWhere($value = TRUE) {
 		$this->_salt_allowEmptyWhere = $value;
+		return $this;
 	}
 
 	/**
@@ -106,7 +110,6 @@ class UpdateQuery extends Query {
 		}
 		$expr->asSetter($field);
 
-		
 		$clauseKey = ClauseType::SET.'-'.$fieldName;
 
 		$this->removeBinds($clauseKey);
@@ -132,7 +135,7 @@ class UpdateQuery extends Query {
 			$this->whereAndObject($this->_salt_obj);
 		}
 		if ((count($this->_salt_wheres) === 0) && !$this->_salt_allowEmptyWhere) {
-			throw new SaltException('You don\'t have a WHERE clause on UPDATE. Please call allowEmptyWhere() if you really want to do this');
+			throw new SaltException(L::error_query_missing_where('UPDATE'));
 		}
 		$sql.=$this->buildWhereClause();
 		$sql.=$this->buildOrderClause();

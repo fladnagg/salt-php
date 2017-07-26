@@ -28,9 +28,9 @@ class FormHelper {
 	/** Key for store value before formatting */
 	const PARAM_RAW_VALUE = '_saltRawValue';
 
-	/** Key for knowing value source */ 
+	/** Key for knowing value source */
 	const PARAM_FROM_INPUT = '_saltFromInput';
-	
+
 	/** Key for adding datepicker JS */
 	const PARAM_DATEPICKER = '_saltDatePicker';
 
@@ -46,7 +46,7 @@ class FormHelper {
 	private static $withJQueryUI = TRUE;
 	/** @var string[] List of javascript code to add before closing form */
 	private static $javascriptCodes = array();
-	
+
 	/**
 	 * Enable or disable usage of JQueryUI
 	 * @param boolean $value TRUE (default) for enable JQueryUI, false for disable
@@ -147,11 +147,11 @@ class FormHelper {
 		if ($action === NULL) {
 			$action = $Input->S->RAW->REQUEST_URI;
 		}
-		
+
 		$anchor = NULL;
 		$datas = explode('#', $action, 2);
 		if (count($datas) > 1) {
-			$anchor = last($datas); 
+			$anchor = last($datas);
 		}
 		$datas = first($datas);
 
@@ -170,7 +170,7 @@ class FormHelper {
 		if ($anchor !== NULL) {
 			$action.= '#'.$anchor;
 		}
-		
+
 		$others['action'] = $action;
 
 		return self::HTMLtag('form', $others, NULL, self::TAG_OPEN);
@@ -209,16 +209,16 @@ class FormHelper {
 	 */
 	public static function end() {
 		self::$method = NULL;
-		
+
 		$result='';
 		if (count(self::$javascriptCodes) > 0) {
 			$result.='<script type="text/javascript">';
 			$result.=implode("\n\n", self::$javascriptCodes);
 			$result.='</script>';
 		}
-		
+
 		self::$javascriptCodes = array();
-		
+
 		$result.=self::HTMLtag('form', array(), NULL, self::TAG_CLOSE);
 		return $result;
 	}
@@ -327,7 +327,7 @@ class FormHelper {
 		} else {
 			$Input = In::getInstance();
 			if (self::$method === NULL) {
-				throw new SaltException('Please call FormHelper::get() or FormHelper::post() before');
+				throw new SaltException(L::error_view_missing_form);
 			}
 			if ($Input->{self::$method}->ISSET->$name) {
 				return $Input->{self::$method}->RAW->$name;
@@ -335,11 +335,11 @@ class FormHelper {
 		}
 		return NULL;
 	}
-	
+
 	/**
 	 * Replace value from previously submitted form
 	 * @param string $name name of input (simple name, not the return of self::getName() !)
-	 * @param mixed $value value to set 
+	 * @param mixed $value value to set
 	 * @throws SaltException if called outside a form
 	 */
 	public static function setValue($name, $value) {
@@ -350,7 +350,7 @@ class FormHelper {
 		} else {
 			$Input = In::getInstance();
 			if (self::$method === NULL) {
-				throw new SaltException('Please call FormHelper::get() or FormHelper::post() before');
+				throw new SaltException(L::error_view_missing_form);
 			}
 			if ($Input->{self::$method}->ISSET->$name) {
 				$Input->{self::$method}->SET->$name = $value;
@@ -422,7 +422,7 @@ class FormHelper {
 			}
 			$value = NULL; // value in parameters have more priority than GET/POST
 		}
-		
+
 		if (($type === 'text') && ($field->type === FieldType::DATE) && (self::$withJQueryUI)) {
 			$others[self::PARAM_DATEPICKER] = TRUE;
 		}
@@ -437,7 +437,7 @@ class FormHelper {
 				$options = $others['options'];
 			}
 			if ((count($options) === 0) && ($field->type === FieldType::BOOLEAN)) {
-				$options = array('1' => 'Oui', '0' => 'Non');
+				$options = array('1' => L::view_yes, '0' => L::view_no);
 			}
 			if ((count($options) > 0) && $field->nullable && !isset($options[''])) {
 				$options = array('' => '') + $options;
@@ -628,12 +628,12 @@ class FormHelper {
 	private static function buildSelectOptions(array $options, $selected) {
 		$Input = In::getInstance();
 		$content = '';
-		
+
 		if (!is_array($selected)) {
 			$selected = array($selected);
 		}
 		$selected = array_map('strval', $selected);
-		
+
 		foreach($options as $k=>$v) {
 			$optAttrs = array();
 			if (is_array($v)) {
@@ -649,7 +649,7 @@ class FormHelper {
 				}
 			}
 			$optAttrs['value'] = $k;
-		
+
 			if (in_array(strval($k), $selected)) { // always string values
 				$optAttrs['selected'] = 'selected';
 			}
@@ -662,8 +662,7 @@ class FormHelper {
 		}
 		return $content;
 	}
-	
-	
+
 	/**
 	 * Return a select HTML tag
 	 * @param string $name name of the tag
@@ -698,11 +697,11 @@ class FormHelper {
 
 		return self::HTMLtag('select', $attrs, $content);
 	}
-	
+
 	/**
 	 * Register a javascript bloc to add before closing form
 	 * @param string $key The key to use for append code : every previous code registered with this key is replaced
-	 * @param string $jsCode The javascript code 
+	 * @param string $jsCode The javascript code
 	 */
 	public static function registerJavascript($key, $jsCode) {
 		self::$javascriptCodes[$key] = $jsCode;

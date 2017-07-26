@@ -38,7 +38,7 @@ class DeleteQuery extends UpdateQuery {
 		foreach($objects as $o) {
 			$cl = get_class($o);
 			if ($cl !== $class) {
-				throw new SaltException('Cannot delete differents objects type at the same time. The first object is a ['.$class.']. Found another object in list of type ['.$cl.']');
+				throw new SaltException(L::error_query_mixed_types($class, $cl));
 			}
 			if (!$o->isReadonly()) {
 				$notReadonlyObjects[] = $o;
@@ -60,7 +60,7 @@ class DeleteQuery extends UpdateQuery {
 
 	/**
 	 * {@inheritDoc}
-	 * @see salt\SqlBindField::buildSQL() 
+	 * @see salt\SqlBindField::buildSQL()
 	 */
 	protected function buildSQL() {
 		$sql='DELETE '.$this->_salt_alias.' FROM '.$this->resolveTable();
@@ -76,7 +76,7 @@ class DeleteQuery extends UpdateQuery {
 			}
 		}
 		if ((count($this->_salt_wheres) === 0) && !$this->_salt_allowEmptyWhere) {
-			throw new SaltException('You don\'t have a WHERE clause on DELETE. Please call allowEmptyWhere() if you really want to do this');
+			throw new SaltException(L::error_query_missing_where('DELETE'));
 		}
 
 		$sql.=$this->buildWhereClause();

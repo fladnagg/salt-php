@@ -45,12 +45,12 @@ class Query extends BaseQuery {
 	/**
 	 * @var boolean TRUE if table name does not have to use alias (DELETE query) */
 	protected $_salt_noAlias = FALSE;
-	
+
 	/**
 	 * @var string database to use in table prefix
 	 */
 	protected $_salt_database = NULL;
-	
+
 	/**
 	 * Create a new SELECT query
 	 * @param Base $obj object for query creation
@@ -58,7 +58,7 @@ class Query extends BaseQuery {
 	 */
 	public function __construct(Base $obj, $withField=FALSE) {
 		parent::__construct($obj);
-		
+
 		if ($obj instanceof Dual) {
 			$this->_salt_noAlias = TRUE;
 		} else {
@@ -72,7 +72,7 @@ class Query extends BaseQuery {
 		}
 	}
 
-	
+
 	/**
 	 * Get a sub query of this query
 	 * @return Query a query on the same table with the same alias for using in whereAndQuery or whereOrQuery
@@ -112,10 +112,10 @@ class Query extends BaseQuery {
 			$sqlExpr = $field;
 			$field = $sqlExpr->getFieldName();
 			if ($field === NULL) {
-				throw new SaltException('Only SqlExpr of type Field can be used here');
+				throw new SaltException(L::error_query_select_expr);
 			}
 		} else if (!is_string($field)) {
-			throw new SaltException('A field name is expected');
+			throw new SaltException(L::error_query_select_fieldname);
 		} else {
 			$sqlExpr = $this->$field;
 		}
@@ -138,7 +138,7 @@ class Query extends BaseQuery {
 		$aliases = $expr->getAllUsedTableAlias();
 		foreach($aliases as $a) {
 			if (($this->_salt_alias !== $a) && !isset($this->_salt_joins[$a])) {
-				throw new SaltException('No query with alias ['.$a.'] in join clauses. We cannot add the field '.$expr->toSQL().' in select clause');
+				throw new SaltException(L::error_query_select_missing_join($a, $expr->toSQL()));
 			}
 		}
 
@@ -147,7 +147,7 @@ class Query extends BaseQuery {
 		}
 
 		if ($as === NULL) {
-			throw new SaltException('Please provide an alias for field '.$expr->toSQL());
+			throw new SaltException(L::error_query_select_missing_alias($expr->toSQL()));
 		}
 
 		$this->_salt_fields[]=array($expr, $as);
@@ -235,7 +235,7 @@ class Query extends BaseQuery {
 		$allIds = array();
 		foreach($objects as $obj) {
 			if (!$obj instanceof $class) {
-				throw new SaltException('Cannot use an object of type '.get_class($obj).' in a query on '.$class.' objects');
+				throw new SaltException(L::error_query_mixed_objects(get_class($obj), $class));
 			}
 			$allIds[] = $obj->$idField;
 		}
@@ -273,7 +273,7 @@ class Query extends BaseQuery {
 			$this->addWhereClause($type, '('.implode(' ',$subQuery->_salt_wheres).')');
 			$this->linkBindsOf($subQuery, ClauseType::WHERE, ClauseType::WHERE);
 		} else {
-			throw new SaltException('Cannot use a subquery on a different table of the main query');
+			throw new SaltException(L::error_query_mixed_subquery);
 		}
 	}
 
@@ -308,7 +308,7 @@ class Query extends BaseQuery {
 				return SqlExpr::text(self::escapeName($alias));
 			}
 		}
-		throw new SaltException('Cannot find the alias ['.$alias.'] in the query');
+		throw new SaltException(L::error_query_missing_alias($alias));
 	}
 
 	/**
@@ -397,7 +397,7 @@ class Query extends BaseQuery {
 	 */
 	private function addJoin(Query $other, $fieldOrExpr, $operator, $valueOrExpr, $type = 'INNER', $table, $withOtherDatas=TRUE) {
 		if (isset($this->_salt_joins[$other->_salt_alias])) {
-			throw new SaltException('A join with the same alias ['.$other->_salt_alias.'] already exists.');
+			throw new SaltException(L::error_query_duplicate_join($other->_salt_alias));
 		}
 
 		$this->_salt_joins[$other->_salt_alias]=array(
@@ -511,7 +511,7 @@ class Query extends BaseQuery {
 			$this->_salt_joins[$other->_salt_alias]['on'][]=$onClause;
 		}
 	}
-	
+
 	/**
 	 * add an ON clause to an existing join
 	 * @param string $type AND|OR
@@ -523,7 +523,7 @@ class Query extends BaseQuery {
 	 */
 	private function addJoinOn($type, Query $other, $fieldOrExpr, $operator, $valueOrExpr) {
 		if (!array_key_exists($other->_salt_alias, $this->_salt_joins)) {
-			throw new SaltException('No join found for alias '.$other->_salt_alias.'.');
+			throw new SaltException(L::error_query_missing_join($other->_salt_alias));
 		}
 
 		$absoluteField = $this->resolveFieldName(ClauseType::JOIN, $fieldOrExpr);
@@ -570,7 +570,7 @@ class Query extends BaseQuery {
 	/**
 	 * Use database name in table reference.
 	 * Can be used to make join between tables of different database in same schema
-	 * 
+	 *
 	 * @param string $database the name of the other database
 	 * @return static current query
 	 */
@@ -578,19 +578,19 @@ class Query extends BaseQuery {
 		$this->_salt_database = $database;
 		return $this;
 	}
-	
+
 	/**
 	 * get the table name for the query
 	 * @return string table name, with or without alias (depends on noAlias)
 	 */
 	protected function resolveTable() {
-		
+
 		$tableName = $this->_salt_obj->MODEL()->getTableName();
-		
+
 		if ($this->_salt_database !== NULL) {
 			$tableName = SqlBindField::escapeName($this->_salt_database).'.'.$tableName;
 		}
-		
+
 		if ($this->_salt_noAlias) {
 			return $tableName;
 		}
@@ -715,14 +715,14 @@ class Query extends BaseQuery {
 	 */
 	protected function buildSQL() {
 		$sql='SELECT ';
-		
+
 		$sql.=$this->buildSelectClause();
 		$sql.=$this->toBaseSQL();
 		$sql.=$this->buildOrderClause();
-		
+
 		return $sql;
 	}
-	
+
 	/**
 	 * Retrieve a field as an SqlExpr for reuse it in another query / SqlExpr
 	 * @param string $fieldName name of the field

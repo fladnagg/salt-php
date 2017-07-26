@@ -91,6 +91,20 @@ class Salt {
 	public static function config() {
 		require_once(PATH.'conf/config.php');
 		In::setCharset(CHARSET);
+		self::initI18n();
+	}
+
+	/**
+	 * Initialize I18n instance
+	 */
+	private static function initI18n() {
+		static $i18nInitialized = FALSE;
+
+		if (!$i18nInitialized) {
+			$i18nInitialized = TRUE;
+			$i18n = I18n::getInstance('SALT', PATH, I18N_MODE);
+			$i18n->init(I18N_DEFAULT_LOCALE)->alias('salt\L');
+		}
 	}
 
 	/**
@@ -104,7 +118,8 @@ class Salt {
 		Benchmark::start('salt.findClasses');
 		$resolvedFolder = realpath($folder);
 		if ($resolvedFolder === FALSE) {
-			throw new SaltException('Folder ['.$folder.'] does not exists');
+			// not translated : I18n can be not loaded yet
+			throw new SaltException('Directory ['.$folder.'] does not exists');
 		}
 		self::$ALL_CLASSES += self::findAllClasses($resolvedFolder, $namespace, $pattern, $excludes = NULL);
 		Benchmark::stop('salt.findClasses');
@@ -236,6 +251,7 @@ class Salt {
 
 		if ((count($from) > 0) && (count($dest) > 0)) {
 			if (($from[0] === '') ^ ($dest[0] === '')) { // xor ^^ // smiley ;o)
+				// not translated : I18n can be not loaded yet
 				throw new SaltException('Cannot compute relative path from a relative and an absolute path. Please provide two absolute or relative paths.');
 			}
 		}
@@ -273,7 +289,7 @@ class Salt {
 		$base.=DIRECTORY_SEPARATOR;
 		return $base;
 	}
-	
+
 	/**
 	 * Return a list of registered classes in provided path
 	 * @param string $path the path to find classes

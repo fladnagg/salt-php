@@ -8,9 +8,11 @@
 namespace salt;
 
 $_defaultValues = array(
-		'CHARSET'						=> 'UTF-8',
-		'DEFAULT_DATE_DISPLAY_FORMAT' 	=> 'd/m/Y',
-		'BENCH_PRECISION'				=> 5,
+	'CHARSET'						=> 'UTF-8',
+	'DEFAULT_DATE_DISPLAY_FORMAT' 	=> 'd/m/Y',
+	'BENCH_PRECISION'				=> 5,
+	'I18N_DEFAULT_LOCALE'			=> 'en',
+	'I18N_MODE'						=> I18n::MODE_REGENERATE_ON_THE_FLY,
 );
 foreach($_defaultValues as $k => $v) {
 	if (!defined(__NAMESPACE__.'\\'.$k)) {
@@ -25,8 +27,12 @@ foreach($_defaultValues as $k => $v) {
 if (false) { // for doc...
 	/** Default charset */
 	define('salt\CHARSET', 'UTF-8');
-	/** Default PHP date format for display a date field */ 
+	/** Default PHP date format for display a date field */
 	define('salt\DEFAULT_DATE_DISPLAY_FORMAT', 'd/m/Y');
 	/** Default precision of Benchmark timers */
 	define('salt\BENCH_PRECISION', 5);
+	/** Default locale */
+	define('salt\I18N_DEFAULT_LOCALE', 'en');
+	/** Mode for locale class generation */
+	define('salt\I18N_MODE', I18n::MODE_REGENERATE_ON_THE_FLY);
 }

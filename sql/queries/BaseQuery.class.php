@@ -19,7 +19,7 @@ abstract class BaseQuery extends SqlBindField {
 	/**
 	 * @var Base the object the query is build for */
 	protected $_salt_obj;
-		
+
 	/**
 	 * Construct a new query
 	 * @param Base $obj the object used for retrieve metadata.
@@ -36,7 +36,7 @@ abstract class BaseQuery extends SqlBindField {
 	 * @throws SaltException if called on BaseQuery instance
 	 */
 	public function toCountQuery() {
-		throw new SaltException('Not implemented');
+		throw new SaltException(L::error_not_implemented);
 	}
 
 	/**
@@ -82,10 +82,10 @@ abstract class BaseQuery extends SqlBindField {
 		return $this->_salt_alias.'.'.$fieldNameOrValue; // FIXME : date in timestamp format is not converted to DATE format in WHERE clause
 // 		return SqlExpr::field($this->_salt_alias, $this->_salt_obj->getField($fieldNameOrValue))->toSQL();
 	}
-	
+
 	/**
 	 * If parameter is empty, the query will not be executed
-	 * 
+	 *
 	 * This can be used if the query contains an IN where condition with an empty array : Executing the query result in an exception,
 	 * but we can use this function for return an empty result without exception : <pre>
 	 *  $q->whereAnd('ids', 'IN', $values); // will produce a bad where clause : "ids IN ()" if $values is empty
@@ -99,7 +99,7 @@ abstract class BaseQuery extends SqlBindField {
 			$this->_salt_enabled = FALSE;
 		}
 	}
-	
+
 	/**
 	 * Check if we have to execute the query
 	 * @return boolean TRUE if the query can be executed, FALSE otherwise

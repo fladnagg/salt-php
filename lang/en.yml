@@ -1,0 +1,77 @@
+
+error:
+  not_implemented: Not implemented.
+
+  db:
+    unknown: Unknown database %s. Please register it before using.
+    connect: Unable to connect to database %s.
+    default_already_registered: Default database already defined.
+    
+  query:
+    fetch: Error in populate object during fetch from the query %s.
+    expected:
+      insert: Query have inserted %s rows instead of expected %s.
+      delete: Query have deleted %s rows instead of expected %s.
+      update: Query have modified %s rows instead of expected %s.
+    missing_where: You don't have a WHERE clause on %s. Please call allowEmptyWhere() if you really want to do this.
+    missing_alias: Cannot find the alias [%s] in the query.
+    mixed_types: Cannot handle mixed objects type at the same time. The first object is a [%s]. Found another object in list of type [%s].
+    mixed_objects: Cannot use an object of type %s in a query on %s objects.
+    mixed_subquery: Cannot use a subquery on a different table of the main query.
+    select:
+      expr: Only SqlExpr of type Field can be used in SELECT clause.
+      fieldname: Expected a field name.
+      missing_join: No query with alias [%s] in JOIN clauses. We cannot add the field %s in SELECT clause.
+      missing_alias: Please provide an alias for field %s.
+    duplicate_join: A join with the same alias [%s] already exists.
+    missing_join: No join found for alias [%s].
+    insert_select_missing_column: Select query return the column [%s] which not exists in [%s].
+    insert_not_new: Cannot insert object which are not in NEW state.
+    insert_mixed_fields: Cannot insert objects which have not the same fields modified. The first object have changed fields [%s], but another object have changed fields [%s].
+
+  sql:
+    date_without_format: You have to set a format for a date expression.
+    timestamp_without_format: You have to set a format for a timestamp expression.
+    bad_function: "%s is not a valid SQL function. For avoid collision with PHP keywords or other defined methods, SQL functions have to start with an underscore : _IF, _MAX, etc..."
+    null_value: "Cannot set a NULL value to a non-nullable field : %s."
+    text_complex_value: Cannot use a not scalar value with text() method.
+    template_placeholder_mismatch: Template [%s] contains %s placeholders but with %s parameters.
+    change_after_resolve: Cannot change SQL query after resolving.
+
+  model:
+    change_after_initialized: A model cannot be changed after being initialized.
+    date_without_store_format: You have to define the store format for a date field.
+    format_but_not_date: The format can only be defined for a date field.
+    field:
+      reserved_word: The field [%s] cannot be added because it start with a reserved word. Please set a valid useName for it.
+      useless_usename: The field [%s] define an useless useName. The field is NOT a reserved word. Please remove the useName.
+      usename_reserved_word: The field [%s] cannot be added because it use an useName that is also a reserved word. Please set a valid useName for it.
+      cannot_be_null: NULL value is not allowed for the field [%s].
+      value_not_expected: "Value [%s] is not allowed for the field [%s]. Expected values : %s."
+      not_number: Value [%s] have to be a number.
+      not_boolean: Value [%s] have to be a boolean.
+      not_timestamp: Value [%s] have to be a timestamp.
+      already_exists: The field [%s] already exists.
+      unknown: The field [%s] does not exists for class [%s].
+      not_loaded: The field [%s] is not loaded for class [%s].
+    state: The object state is [%s] instead of one of expected state [%s].
+    state_forbidden: The object is in a forbidden state [%s].
+    change_readonly: Cannot modify a readonly object.
+    change_deleted: Cannot modify a deleted object.
+    readonly_on_modified: Cannot set a readonly state on a modified object
+
+  tx:
+    create_table: Cannot create a table during a transaction.
+    begin: Cannot begin a new transaction.
+    no_transaction: No transaction in progress.
+    commit: Error during commit.
+    rollback: Error during rollback.
+    pending: A transaction is in progress for database [%s]. Please handle it better before leaving page.
+
+  view:
+    missing_form: Please call FormHelper::get() or FormHelper::post() before using others FormHelper API.
+
+view:
+  # "Yes" and "No" are keyword in yaml, we have to use quote for the value 
+  yes: 'Yes'
+  no: 'No'

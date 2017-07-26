@@ -20,7 +20,7 @@ class DBHelper {
 	 * @var \PDO instance of DB connexion
 	 */
 	private $base = NULL;
-	
+
 	/**
 	 * @var string type of instance
 	 */
@@ -52,7 +52,7 @@ class DBHelper {
 	/**
 	 * Create a new DBHelper
 	 * @param \PDO $pdo the PDO instance to use in this DBHelper instance
-	 * @param string $type type of the instance 
+	 * @param string $type type of the instance
 	 */
 	private function __construct(PDO $pdo, $type) {
 		$this->base = $pdo;
@@ -84,7 +84,7 @@ class DBHelper {
 	 */
 	public static function registerDefault($name, $host, $port, $db, $user, $pass, $charset, array $options = array()) {
 		if (self::$default !== NULL) {
-			throw new SaltException('Default DB already defined');
+			throw new SaltException(L::error_db_default_already_registered);
 		}
 		self::$default = $name;
 		self::register($name, $host, $port, $db, $user, $pass, $charset, $options);
@@ -130,12 +130,12 @@ class DBHelper {
 		if (!isset(self::$allInstances[$type])) {
 			$helper = null;
 			if (!isset(self::$allDatas[$type])) {
-				throw new SaltException('Unknown database '.$type.'. Please register it before using.');
+				throw new SaltException(L::error_db_unknown($type));
 			}
 			try {
 				$helper = new DBHelper(self::$allDatas[$type]->connect(), $type);
 			} catch (\PDOException $ex) {
-				throw new SaltException('Unable to connect to database '.$type, $ex->getCode(), $ex);
+				throw new SaltException(L::error_db_connect($type), $ex->getCode(), $ex);
 			}
 			self::$allInstances[$type] = $helper;
 		}
@@ -180,20 +180,20 @@ class DBHelper {
 			if ($st !== NULL) {
 				$fields = $query->getSelectFields();
 				$binding = $query->getBindingClass();
-	
+
 				if ($bindingObject !== NULL) {
 					$binding = get_class($bindingObject);
 					//$fields = NULL;
 				}
-	
+
 				try {
 					$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $binding, array($fields, NULL, ($bindingObject !== NULL)));
 				} catch (\PDOException $ex) {
-					throw new DBException('Error in populate object during fetch from the query ', $query->toSQL($pagination), $ex);
+					throw new DBException(L::error_query_fetch($query->toSQL($pagination)), $query->toSQL($pagination), $ex);
 				} catch (\Exception $ex) {
-					throw new SaltException('Error in populate object during fetch from the query '.$query->toSQL($pagination), $ex->getCode(), $ex);
+					throw new SaltException(L::error_query_fetch($query->toSQL($pagination)), $ex->getCode(), $ex);
 				}
-	
+
 				foreach($r->data as $object) {
 					$object->afterLoad();
 				}
@@ -216,13 +216,13 @@ class DBHelper {
 		if (!$query->isEnabled())  {
 			return NULL;
 		}
-		
+
 		Benchmark::increment('salt.queries');
-		
+
 		if ($count) {
 			$query = $query->toCountQuery();
 		}
-		
+
 		$sql = $query->toSQL();
 		$binds = $query->getBinds();
 
@@ -382,10 +382,10 @@ class DBHelper {
 
 		if ($st !== NULL) {
 			$expected = $query->getInsertObjectCount();
-	
+
 			$changedRows = $st->rowCount();
 			if (($expected > 0) && ($expected !== $changedRows)) {
-				throw new RowCountException('Query have inserted '.$changedRows.' rows instead of expected '.$expected.'.',
+				throw new RowCountException(L::error_query_expected_insert($changedRows, $expected),
 						$query->toSQL(), $changedRows, $expected);
 			}
 			return $this->base->lastInsertId();
@@ -408,18 +408,18 @@ class DBHelper {
 			if ($query->isSimpleQuery() && ($expected < 0)) {
 				$expected = $query->getDeletedObjectCount();
 			}
-	
+
 			if ($expected <= 0) {
 				$expected = NULL;
 			}
-	
+
 			$changedRows = $st->rowCount();
 			if (($expected !== NULL) && ($expected !== $changedRows)) {
-				throw new RowCountException('Query have deleted '.$changedRows.' rows instead of expected '.$expected.'.',
+				throw new RowCountException(L::error_query_expected_delete($changedRows, $expected),
 						$query->toSQL(), $changedRows, $expected);
 			}
 		}
-		
+
 		return $changedRows;
 	}
 
@@ -437,14 +437,14 @@ class DBHelper {
 			if ($query->isSimpleQuery() && ($expected < 0)) {
 				$expected = 1;
 			}
-	
+
 			if ($expected <= 0) {
 				$expected = NULL;
 			}
-	
+
 			$changedRows = $st->rowCount();
 			if (($expected !== NULL) && ($expected !== $changedRows)) {
-				throw new RowCountException('Query have modified '.$changedRows.' rows instead of expected '.$expected.'.',
+				throw new RowCountException(L::error_query_expected_update($changedRows, $expected),
 						$query->toSQL(), $changedRows, $expected);
 			}
 		}
@@ -458,7 +458,7 @@ class DBHelper {
 	 */
 	public function execCreate(CreateTableQuery $query) {
 		if ($this->txLevel > 0) {
-			throw new SaltException('Cannot create a table during a transaction.');
+			throw new SaltException(L::error_tx_create_table);
 		}
 		$this->exec($query);
 	}
@@ -470,7 +470,7 @@ class DBHelper {
 	public function inTransaction() {
 		return ($this->txLevel > 0);
 	}
-	
+
 	/**
 	 * Start a transaction with PDO
 	 * @throws SaltException if PDO->beginTransaction() failed
@@ -479,7 +479,7 @@ class DBHelper {
 		if ($this->txLevel === 0) {
 			$this->txRollback = false;
 			if ($this->base->beginTransaction() === FALSE) {
-				throw new SaltException('Cannot begin a new Transaction.');
+				throw new SaltException(L::error_tx_begin);
 			}
 		}
 		$this->txLevel++;
@@ -493,7 +493,7 @@ class DBHelper {
 	 */
 	public function commit() {
 		if ($this->txLevel <= 0) {
-			throw new SaltException('No transaction in progress.');
+			throw new SaltException(L::error_tx_no_transaction);
 		}
 		if ($this->txLevel === 1) {
 			if ($this->txRollback) { // if nested transaction rollback, rollback too
@@ -501,7 +501,7 @@ class DBHelper {
 				return;
 			}
 			if ($this->base->commit() === FALSE) {
-				throw new SaltException('Error during commit.');
+				throw new SaltException(L::error_tx_commit);
 			}
 		// There is a bug with MYSQL. Commit can fail if mysql server became unreachable : https://bugs.php.net/bug.php?id=66528
 		// No real workaround... so we just pray for not happening (the script go on, but mysql statements are rollback)
@@ -519,11 +519,11 @@ class DBHelper {
 	 */
 	public function rollback() {
 		if ($this->txLevel <= 0) {
-			throw new SaltException('No transaction in progress.');
+			throw new SaltException(L::error_tx_no_transaction);
 		}
 		if ($this->txLevel === 1) {
 			if ($this->base->rollBack() === FALSE) {
-				throw new SaltException('Error during rollback.');
+				throw new SaltException(L::error_tx_rollback);
 			}
 		}
 		$this->txLevel--;
@@ -537,11 +537,11 @@ class DBHelper {
 	public static function checkAllTransactionsEnded() {
 		foreach(self::$allInstances as $name => $instance) {
 			if ($instance->txLevel > 0) {
-				throw new SaltException('A transaction is in progress for database ['.$name.']. Please handle it better before leaving page.');
+				throw new SaltException(L::error_tx_pending($name));
 			}
 		}
 	}
-	
+
 	/**
 	 * Return database name
 	 * @param string $type id of a previously registered database, or NULL for default registered database
@@ -553,9 +553,9 @@ class DBHelper {
 			$type = self::$default;
 		}
 		if (!isset(self::$allDatas[$type])) {
-			throw new SaltException('Unknown database '.$type.'. Please register it before using.');
+			throw new SaltException(L::error_db_unknown($type));
 		}
-		
+
 		return self::$allDatas[$type]->getDatabase();
 	}
 } // DBHelper
@@ -657,7 +657,7 @@ class DBConnexion {
 		}
 		return TRUE;
 	}
-	
+
 	/**
 	 * Retrieve database name
 	 * @return string database name

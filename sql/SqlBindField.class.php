@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * SqlBindField class
  *
@@ -19,7 +19,7 @@ abstract class SqlBindField {
 	/**
 	 * @var int bind pagination unique number */
 	private static $_salt_bindPaginationNumber=0;
-	
+
 	/**
 	 * @var mixed[] list of binds
 	 * @content <pre>array of bindName => array(
@@ -33,7 +33,7 @@ abstract class SqlBindField {
 	 * @var string SQL text that use the binds
 	 */
 	private $_salt_text = NULL;
-	
+
 	/**
 	 * @var string[][] list of local binds by source
 	 * @content <pre>array of (ClauseType => array of bindName)</pre>
@@ -44,12 +44,12 @@ abstract class SqlBindField {
 	 * @content <pre>array of (ClauseType (source) => array of ClauseType(dest) => array of SqlBindField)</pre>
 	 */
 	private $_salt_others = array();
-	
-	/***
+
+	/**
 	 * @var boolean TRUE if binds values are private (do not display in debug queries)
 	 */
 	private $_salt_privateBinds = FALSE;
-	
+
 	/**
 	 * Add a bind
 	 * @param mixed $value value of bind
@@ -59,7 +59,7 @@ abstract class SqlBindField {
 	 */
 	protected function addBind($value, $type, $source = ClauseType::ALL) {
 		$this->checkNotResolved();
-		
+
 		if (is_array($value)) { // handle tuples
 			$binds = array();
 			foreach($value as $v) {
@@ -83,33 +83,33 @@ abstract class SqlBindField {
 		if ($source === NULL) {
 			$source = ClauseType::ALL;
 		}
-		
+
 		if (!isset($this->_salt_sources[$source])) {
 			$this->_salt_sources[$source] = array();
 		}
 		$this->_salt_sources[$source][] = $bind;
-		
+
 		return $bind;
 	}
 
 	/**
 	 * Set all binds values as private. They will be hidden in debug queries
-	 * @params boolean $privateBinds (Optional, TRUE) hide binds values in debug queries
+	 * @param boolean $privateBinds (Optional, TRUE) hide binds values in debug queries
 	 * @return SqlBindField the current object
 	 */
 	public function privateBinds($privateBinds = TRUE) {
 		$this->_salt_privateBinds = $privateBinds;
 		return $this;
 	}
-	
+
 	/**
 	 * Check binds are private
-	 * @return boolean TRUE if privateBinds has been called 
+	 * @return boolean TRUE if privateBinds has been called
 	 */
 	public function isPrivateBinds() {
 		return $this->_salt_privateBinds;
 	}
-	
+
 	/**
 	 * Retrieve binds for pagination (LIMIT clause)
 	 * @param Pagination $pagination the Pagination object
@@ -132,7 +132,7 @@ abstract class SqlBindField {
 		);
 		return $binds;
 	}
-	
+
 	/**
 	 * Return all binds
 	 * @param string $source (Optional) ClauseType or specific text for restrict returned binds to specified source
@@ -141,11 +141,11 @@ abstract class SqlBindField {
 	public function getBinds($source = ClauseType::ALL) {
 
 		$result = array();
-		
+
 		if ($source === NULL) {
 			$source = ClauseType::ALL;
 		}
-		
+
 		if ($source === ClauseType::ALL) { // not really needed, but avoid the useless for in that case
 			$result = $this->_salt_binds;
 		} else {
@@ -157,7 +157,7 @@ abstract class SqlBindField {
 				}
 			}
 		}
-		
+
 		// all linked binds
 		foreach($this->_salt_others as $src => $other) {
 			if (($source === ClauseType::ALL) || ($source === $src)) {
@@ -168,7 +168,7 @@ abstract class SqlBindField {
 				} // each other by DEST
 			} // have to include
 		} // each other by SOURCE
-		
+
 		return $result;
 	}
 
@@ -177,7 +177,7 @@ abstract class SqlBindField {
 	 * @param string $source ClauseType of specific text
 	 */
 	protected function removeBinds($source) {
-		
+
 		$this->checkNotResolved();
 
 		if (isset($this->_salt_sources[$source])) {
@@ -187,18 +187,22 @@ abstract class SqlBindField {
 			}
 			unset($this->_salt_sources[$source]);
 		}
-		
+
 		if (isset($this->_salt_others[$source])) {
 			unset($this->_salt_others[$source]);
 		}
 	}
-	
+
+	/**
+	 * Throw an exception if called after SqlBind have been resolved
+	 * @throws SaltException if called after toSQL()
+	 */
 	private function checkNotResolved() {
 		if ($this->_salt_text !== NULL) {
-			throw new SaltException('Cannot change SQL query after resolving');
+			throw new SaltException(L::error_sql_change_after_resolve);
 		}
 	}
-	
+
 	/**
 	 * Link another SqlBindField to this bindFields.
 	 * @param SqlBindField $other the other SqlBindField to link
@@ -209,7 +213,7 @@ abstract class SqlBindField {
 	protected function linkBindsOf(SqlBindField $other, $source = ClauseType::ALL, $otherSource = ClauseType::ALL) {
 
 		$this->checkNotResolved();
-		
+
 		if ($source === NULL) {
 			$source = ClauseType::ALL;
 		}
@@ -221,26 +225,26 @@ abstract class SqlBindField {
 		}
 		if (!isset($this->_salt_others[$source][$otherSource])) {
 			$this->_salt_others[$source][$otherSource]=array();
-		}		
+		}
 
 		$this->_salt_others[$source][$otherSource][] = $other;
 	}
 
 	/**
 	 * Escape a name for SQL use with backquote
-	 * @param string $name a SQL name : database, table, field, alias, etc... 
+	 * @param string $name a SQL name : database, table, field, alias, etc...
 	 * @return string SQL escaped text with backquote.
 	 */
 	public static function escapeName($name) {
 		return '`'.$name.'`';
 	}
-	
+
 	/**
 	 * Build the SQL text that using the binds
 	 * @return string the SQL text
 	 */
 	abstract protected function buildSQL();
-	
+
 	/**
 	 * Retrieve the SQL text
 	 * @return string the memoized SQL text

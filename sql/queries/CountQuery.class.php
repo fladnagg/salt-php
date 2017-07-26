@@ -11,7 +11,7 @@ namespace salt;
  * Internal query for execution only
  */
 class CountQuery extends BaseQuery {
-	
+
 	/**
 	 * @var string SQL text of the count query */
 	private $_salt__text;
@@ -19,7 +19,7 @@ class CountQuery extends BaseQuery {
 	 * @var mixed[][] binds of the query : array of bindName => array of ('value' => ..., 'type' => ...)
 	 */
 	private $_salt__binds;
-	
+
 	/**
 	 * Create a new CountQuery
 	 * @param string $sqlText SQL text of the count query
@@ -29,7 +29,7 @@ class CountQuery extends BaseQuery {
 		$this->_salt__text = $sqlText;
 		$this->_salt__binds = $binds;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
 	 * @see \salt\SqlBindField::buildSQL()
@@ -37,9 +37,10 @@ class CountQuery extends BaseQuery {
 	protected function buildSQL() {
 		return $this->_salt__text;
 	}
-	
+
 	/**
 	 * {@inheritDoc}
+	 * @param string $source not used here
 	 * @see \salt\SqlBindField::getBinds()
 	 */
 	public function getBinds($source = NULL) {

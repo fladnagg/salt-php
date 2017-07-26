@@ -110,7 +110,7 @@ class Field {
 	 * @param string $nullable the new value for nullable behavior
 	 * @param string $defaultValue the new default value
 	 * @param string $values the new values list
-	 * @return Field a new instance of Field with parameters 
+	 * @return Field a new instance of Field with parameters
 	 */
 	public function newClone($name = NULL, $text = NULL, $nullable = NULL, $defaultValue = NULL, $values = NULL) {
 		$field = clone $this;
@@ -120,12 +120,12 @@ class Field {
 		if ($nullable !== NULL) $field->nullable = $nullable;
 		if ($defaultValue !== NULL) $field->defaultValue = $defaultValue;
 		if ($values !== NULL) $field->values = $values;
-		
+
 		$field->checkMetadata();
-		
+
 		return $field;
 	}
-	
+
 	/**
 	 * Check internal metadata of a field after creation
 	 * @throws SaltException if metadata are not valid
@@ -133,27 +133,27 @@ class Field {
 	private function checkMetadata() {
 		if ($this->type === FieldType::DATE) {
 			if ($this->format === NULL) {
-				throw new SaltException('You have to define the store format for date field');
+				throw new SaltException(L::error_model_date_without_store_format);
 			}
 		} else {
 			if ($this->format !== NULL) {
-				throw new SaltException('The format can only be defined for date field');
+				throw new SaltException(L::error_model_format_but_not_date);
 			}
 		}
-		
+
 		if ((strpos(strtoupper($this->name), strtoupper(RESERVED_PREFIX)) === 0)
 		|| in_array(strtoupper($this->name), self::$RESERVED_FIELDS)) {
 			if ($this->useName === NULL) {
-				throw new SaltException('The field ['.$this->name.'] cannot be added because it start with a reserved word. Please set a valid useName for it.');
+				throw new SaltException(L::error_model_field_reserved_word($this->name));
 			}
 		} else if ($this->useName !== NULL) {
-			throw new SaltException('The field ['.$this->name.'] define an useless useName. The field is NOT a reserved word. Please remove the useName.');
+			throw new SaltException(L::error_model_field_useless_usename($this->name));
 		}
 
 		if (($this->useName != NULL)
 		&& ((strpos(strtoupper($this->useName), strtoupper(RESERVED_PREFIX)) === 0)
 		|| in_array(strtoupper($this->name), self::$RESERVED_FIELDS))) {
-			throw new SaltException('The field ['.$this->name.'] cannot be added because it use an useName that is also a reserved word. Please set a valid useName for it.');
+			throw new SaltException(L::error_model_field_usename_reserved_word($this->name));
 		}
 
 		if (count($this->values) > 0) {
@@ -165,7 +165,7 @@ class Field {
 			$this->validate($this->defaultValue);
 		}
 	}
-	
+
 	/**
 	 * Create a Field that contains a number
 	 * @param string $name column name
@@ -255,24 +255,24 @@ class Field {
 			}
 		} else {
 			if ($value === NULL) {
-				throw new SaltException('NULL value is not allowed for the field ['.$this->name.'].');
+				throw new SaltException(L::error_model_field_cannot_be_null($this->name));
 			}
 		}
 
 		if ((count($this->values) > 0) && !isset($this->values[$value])) {
-			throw new SaltException('Value ['.$value.'] is not allowed for the field ['.$this->name.']. Expected values : '.implode(', ', array_keys($this->values)));
+			throw new SaltException(L::error_model_field_value_not_expected($value, $this->name, implode(', ', array_keys($this->values))));
 		}
 
 
 		switch($this->type) {
 			case FieldType::NUMBER :
 				if (!is_numeric($value)) {
-					throw new SaltException('Value ['.$value.'] does not match field type (number)');
+					throw new SaltException(L::error_model_field_not_number($value));
 				}
 			break;
 			case FieldType::BOOLEAN :
 				if (!is_bool($value)) {
-					throw new SaltException('Value ['.$value.'] does not match field type (boolean)');
+					throw new SaltException(L::error_model_field_not_boolean($value));
 				}
 			break;
 			case FieldType::DATE :
@@ -284,7 +284,7 @@ class Field {
 				} catch(\Exception $ex) {
 					// do nothing
 				}
-				throw new SaltException('Value ['.$value.'] does not match field type (timestamp date)');
+				throw new SaltException(L::error_model_field_not_timestamp($value));
 			break;
 		}
 	}

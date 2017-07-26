@@ -27,7 +27,7 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * type of SqlExpr : a sub query */
 	const QUERY=4;
-	
+
 	/**
 	 * template replaced by the main source of SqlExpr */
 	const TEMPLATE_MAIN="\1:main\2";
@@ -95,7 +95,7 @@ class SqlExpr extends SqlBindField {
 	public static function text($text) {
 		return new SqlExpr(self::TEXT, $text);
 	}
-	
+
 	/**
 	 * Join multiple parameters with a separator
 	 * @param string $separator text to use for join parameters
@@ -105,17 +105,17 @@ class SqlExpr extends SqlBindField {
 	public static function implode($separator, $args) {
 		$args = func_get_args();
 		array_shift($args);
-		
+
 		$values = array_fill(0, count($args), self::TEMPLATE_PARAM);
 		$template = implode($separator, $values);
-		
+
 		$params = self::arrayToSqlExpr($args);
 
 		$result = SqlExpr::text('');
 		$result->template[] = array($template, $params);
 		return $result;
 	}
-	
+
 	/**
 	 * Add parenthesis around current SqlExpr
 	 * @return SqlExpr current objet
@@ -126,8 +126,8 @@ class SqlExpr extends SqlBindField {
 
 	/**
 	 * Construct a tuple with parameters : (arg1, arg2, ...)
-	 * @param mixed|SqlExpr $args ... 
-	 * @return SqlExpr current object 
+	 * @param mixed|SqlExpr $args ...
+	 * @return SqlExpr current object
 	 */
 	public static function tuple($args) {
 		$args = func_get_args();
@@ -136,7 +136,7 @@ class SqlExpr extends SqlBindField {
 		$expr = new SqlExpr(self::FUNC, $args);
 		return $expr->parenthesis();
 	}
-	
+
 	/**
 	 * Create a new SqlExpr for a field
 	 *
@@ -154,14 +154,14 @@ class SqlExpr extends SqlBindField {
 
 	/**
 	 * Create a new SqlExpr for a query
-	 * 
+	 *
 	 * @param BaseQuery $query a query that return a compatible value with the usage of the SqlExpr.
 	 * @return SqlExpr
 	 */
 	public static function query(BaseQuery $query) {
 		return new SqlExpr(self::QUERY, $query);
 	}
-	
+
 	/**
 	 * Set the SqlExpr type to NUMBER
 	 * @return SqlExpr current object
@@ -202,7 +202,7 @@ class SqlExpr extends SqlBindField {
 			$this->dateFormat = $format;
 		}
 		if ($this->dateFormat === NULL) {
-			throw new SaltException('You have to set a format for a date expression');
+			throw new SaltException(L::error_sql_date_without_format);
 		}
 		return $this;
 	}
@@ -220,7 +220,7 @@ class SqlExpr extends SqlBindField {
 			$this->dateFormat = $format;
 		}
 		if ($this->dateFormat === NULL) {
-			throw new SaltException('You have to set a format for a timestamp expression');
+			throw new SaltException(L::error_sql_timestamp_without_format);
 		}
 		return $this;
 	}
@@ -275,7 +275,7 @@ class SqlExpr extends SqlBindField {
 	public function template($template, $args = NULL) {
 		$args = func_get_args();
 		array_shift($args);
-		
+
 		$params = self::arrayToSqlExpr($args);
 
 		$this->template[] = array($template, $params);
@@ -396,7 +396,7 @@ class SqlExpr extends SqlBindField {
 	/**
 	 * Convert an array of mixed elements in SqlExpr.
 	 * If element is not already an SqlExpr, it will be converted with SqlExpr::value
-	 * 
+	 *
 	 * @param mixed[] $args all elements
 	 * @return SqlExpr[] list of SqlExpr
 	 */
@@ -408,7 +408,7 @@ class SqlExpr extends SqlBindField {
 		}
 		return $args;
 	}
-	
+
 	/**
 	 * Create a new SqlExpr for an SQL function
 	 * @param string $func name of the SQL function with an underscore prefix for avoid collision with PHP keywords or other defined functions
@@ -417,17 +417,17 @@ class SqlExpr extends SqlBindField {
 	 */
 	public static function __callstatic($func, $args) {
 		if (strpos($func, '_') === 0) {
-			
+
 			$func = substr($func, 1);
 
 			$args = self::arrayToSqlExpr($args);
 			array_unshift($args, $func);
-			
+
 			return new SqlExpr(self::FUNC, $args);
 		}
-		throw new \BadMethodCallException($func.' is not a valid SQL function. For avoid collision with PHP keywords or other defined method, SQL functions have to start with underscore : _IF, _MAX, etc...');
+		throw new \BadMethodCallException(L::error_sql_bad_function($func));
 	}
-	
+
 	/**
 	 * Change in objet after calling this method are ignored
 	 * @return string the SQL text for SqlExpr
@@ -442,7 +442,7 @@ class SqlExpr extends SqlBindField {
 				if (($this->setter !== NULL)
 				&& ($this->data === NULL)
 				&& (!$this->setter->nullable)) {
-					throw new SaltException('Cannot set a NULL value to a non-nullable field : '.$this->setter->name);
+					throw new SaltException(L::error_sql_null_value($this->setter->name));
 				}
 
 				if ($this->data === NULL) {
@@ -482,7 +482,7 @@ class SqlExpr extends SqlBindField {
 				list($alias, $field) = $this->data;
 				if ($alias !== NULL) {
 					$s.=$alias.'.';
-				} 
+				}
 				$s.=$field->name;
 				if ($this->type === NULL) {
 					$this->type = $field->type;
@@ -493,7 +493,7 @@ class SqlExpr extends SqlBindField {
 				if ($this->data === NULL) {
 					$s.='NULL';
 				} else if (!is_scalar($this->data)) {
-					throw new SaltException('Cannot use a not scalar value in text()');
+					throw new SaltException(L::error_sql_text_complex_value);
 				} else if (is_bool($this->data)) {
 					$s.=($this->data)?1:0;
 				} else {
@@ -543,8 +543,7 @@ class SqlExpr extends SqlBindField {
 				$this->linkBindsOf($arg);
 			}
 			if (count($template)-1 !== count($params)) {
-				throw new SaltException('Template '.implode(self::TEMPLATE_PARAM, $template).' contains '.(count($template)-1).
-														' placeholders but with '.(count($params)).' values');
+				throw new SaltException(L::error_sql_template_placeholder_mismatch(implode(self::TEMPLATE_PARAM, $template), count($template)-1, count($params)));
 			}
 			$sql = array_shift($template);
 			foreach($template as $k => $piece) {

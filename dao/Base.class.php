@@ -27,14 +27,14 @@ abstract class Base extends Identifiable {
 	const _SALT_STATE_MODIFIED=30;
 	/** State of a deleted object */
 	const _SALT_STATE_DELETED=40;
-	/** A special state for objet singleton returned by meta() function. Throw an exception if a setter is called */
+	/** A special state for objet singleton returned by singleton() function. Throw an exception if a setter is called */
 	const _SALT_STATE_READONLY=50;
 
 	/**
-	 * @var Base object by child class name. Used in ::singleton() 
+	 * @var Base object by child class name. Used in ::singleton()
 	 */
 	private static $_saltSingletons = array();
-	
+
 	/**
 	 * @var Model models of dao class.
 	 */
@@ -106,8 +106,8 @@ abstract class Base extends Identifiable {
 		if (!isset(self::$_saltModels[$child])) {
 			self::$_saltModels[$child] = new Model($child);
 			if ($withLoad) {
-				// create an object will be call initValues, that call metadata() and initialize MODEL 
-				new $child(); 
+				// create an object will be call initValues, that call metadata() and initialize MODEL
+				new $child();
 			}
 		}
 		return self::$_saltModels[$child];
@@ -125,7 +125,7 @@ abstract class Base extends Identifiable {
 		}
 		return self::$_saltSingletons[$child];
 	}
-	
+
 	/**
 	 * Return a SELECT query on object
 	 * @param string $withField TRUE for retrieve all fields, FALSE otherwise
@@ -134,7 +134,7 @@ abstract class Base extends Identifiable {
 	public static function query($withField = FALSE) {
 		return new Query(self::singleton(), $withField);
 	}
-	
+
 	/**
 	 * Return a generic UPDATE query on object
 	 * @param Query $fromQuery the query to use for update
@@ -143,7 +143,7 @@ abstract class Base extends Identifiable {
 	public static function updateQuery($fromQuery = NULL) {
 		return new UpdateQuery(self::singleton(), $fromQuery);
 	}
-	
+
 	/**
 	 * Return a generic DELETE query on object
 	 * @return DeleteQuery the delete query
@@ -170,7 +170,7 @@ abstract class Base extends Identifiable {
 	public function addExtraField($extraField) {
 		$child = get_called_class();
 		if (self::MODEL()->exists($extraField)) {
-			throw new SaltException('The field ['.$extraField.'] already exists');
+			throw new SaltException(L::error_model_field_already_exists($extraField));
 		}
 		$this->_saltExtraFields[$extraField] = NULL;
 		$this->_saltExtraFieldsMetadata[$extraField] = Field::newText($extraField, $extraField, TRUE);
@@ -251,7 +251,7 @@ abstract class Base extends Identifiable {
 	 */
 	private function initValues(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
 		$model = self::MODEL(FALSE);
-		
+
 		if (!$model->initialized()) {
 			$this->metadata(); // populate Model
 			$model->setInitialized();
@@ -265,7 +265,7 @@ abstract class Base extends Identifiable {
 				} else {
 					$this->_saltState = self::_SALT_STATE_NEW;
 				}
-		
+
 				// for manually created new object, load all default values
 				foreach($model->getFields() as $fieldName => $field) {
 					$this->_saltLoadValues[$fieldName]=$field->defaultValue;
@@ -273,7 +273,7 @@ abstract class Base extends Identifiable {
 						$this->_saltValues[$fieldName]=$field->defaultValue; // for create in INSERT statement
 					}
 				}
-		
+
 				if ($extraFields !== NULL) {
 					foreach($extraFields as $field) {
 						if (!$model->exists($field)) {
@@ -282,7 +282,7 @@ abstract class Base extends Identifiable {
 						}
 					}
 				}
-		
+
 			} else {
 				$this->_saltState = self::_SALT_STATE_LOADING; // for query loaded object, define all loaded fields
 				foreach($loadedFields as $field) {
@@ -335,14 +335,14 @@ abstract class Base extends Identifiable {
 			if ($doNotThrowException) {
 				return FALSE;
 			}
-			throw new SaltException('Unknown field ['.$fieldName.'] for class ['.get_class($this).']');
+			throw new SaltException(L::error_model_field_unknown($fieldName, get_class($this)));
 		}
 		// value can be null : array_key_exists instead of isset
 		if ($forValue && !array_key_exists($fieldName, $this->_saltLoadValues)) {
 			if ($doNotThrowException) {
 				return FALSE;
 			}
-			throw new SaltException('Unloaded field ['.$fieldName.'] for class ['.get_class($this).']');
+			throw new SaltException(L::error_model_field_not_loaded($fieldName, get_class($this)));
 		}
 		return TRUE;
 	}
@@ -390,7 +390,7 @@ abstract class Base extends Identifiable {
 			$state = array($state);
 		}
 		if (!in_array($this->_saltState, $state, TRUE)) {
-			throw new SaltException('Unexpected business object state '.$this->_saltState.' instead of expected '.implode(' or ',$state));
+			throw new SaltException(L::error_model_state($this->_saltState, implode(', ',$state)));
 		}
 	}
 
@@ -406,7 +406,7 @@ abstract class Base extends Identifiable {
 		}
 		if (in_array($this->_saltState, $state, TRUE)) {
 			if ($message === NULL) {
-				$message = 'Unexpected business object state '.$this->_saltState;
+				$message = L::error_model_state_forbidden($this->_saltState);
 			}
 			throw new SaltException($message);
 		}
@@ -428,8 +428,8 @@ abstract class Base extends Identifiable {
 	 */
 	public function __set($fieldName, $value) {
 
-		$this->checkNotState(self::_SALT_STATE_READONLY, 'Cannot change a readonly object');
-		$this->checkNotState(self::_SALT_STATE_DELETED, 'Cannot modify an object in DELETE state');
+		$this->checkNotState(self::_SALT_STATE_READONLY, L::error_model_change_readonly);
+		$this->checkNotState(self::_SALT_STATE_DELETED, L::error_model_change_deleted);
 
 		$this->checkFieldExists($fieldName, TRUE);
 
@@ -503,7 +503,7 @@ abstract class Base extends Identifiable {
 
 		$this->_saltState = self::_SALT_STATE_DELETED;
 	}
-	
+
 	/**
 	 * Check if object is deleted
 	 * @return boolean TRUE if the object have been deleted
@@ -516,7 +516,7 @@ abstract class Base extends Identifiable {
 	 * Make the object readonly. All changes will throw an exception.
 	 */
 	public function readonly() {
-		$this->checkNotState(self::_SALT_STATE_MODIFIED, 'Cannot set a readonly state on a modified object');
+		$this->checkNotState(self::_SALT_STATE_MODIFIED, L::error_model_readonly_on_modified);
 
 		$this->_saltState = self::_SALT_STATE_READONLY;
 	}
