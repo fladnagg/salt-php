@@ -255,6 +255,14 @@ class Salt {
 		}
 
 		if ((count($from) > 0) && (count($dest) > 0)) {
+
+			if ($from[0] === '.') {
+				$from[0] = '';
+			}
+			if ($dest[0] === '.') {
+				$dest[0] = '';
+			}
+
 			if (($from[0] === '') ^ ($dest[0] === '')) { // xor ^^ // smiley ;o)
 				// not translated : I18n can be not loaded yet
 				throw new SaltException('Cannot compute relative path from a relative and an absolute path. Please provide two absolute or relative paths.');
