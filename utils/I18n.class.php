@@ -121,7 +121,7 @@ class I18n {
 		if (!isset(self::$_saltInstances[$name])) {
 			self::$_saltInstances[$name] = new static($name, $rootPath, $mode);
 		} else if ($rootPath !== NULL) {
-			throw new SaltException('I18n is already initialized. Call getInstance() with only the first parameter.');
+			throw new SaltException('I18n is already initialized for application ['.$name.'].');
 		}
 		return self::$_saltInstances[$name];
 	}
@@ -262,7 +262,7 @@ class I18n {
 			$locales = array($locales);
 		}
 
-		if (I18N_DEFAULT_LOCALE !== NULL) {
+		if ((I18N_DEFAULT_LOCALE !== NULL) && (!in_array(I18N_DEFAULT_LOCALE, $locales))) {
 			$locales[] = I18N_DEFAULT_LOCALE;
 		}
 
@@ -354,6 +354,30 @@ class I18n {
 	}
 
 	/**
+	 * Generate a .htaccess file in $dir
+	 * @param string $dir directory
+	 */
+	private function generateHtaccess($dir) {
+		$file = $dir;
+		if (substr($file, -1) !== DIRECTORY_SEPARATOR) {
+			$file.=DIRECTORY_SEPARATOR;
+		}
+		$file.='.htaccess';
+
+		if (!file_exists($file)) {
+			$content=<<<'HTACCESS'
+<IfVersion >= 2.4>
+    Require all denied
+</IfVersion>
+<IfVersion < 2.4>
+    Deny from all
+</IfVersion>
+HTACCESS;
+			file_put_contents($file, $content);
+		}
+	}
+
+	/**
 	 * Initialize a locale
 	 *
 	 * @param string $locale locale to initialize
@@ -421,10 +445,13 @@ class I18n {
 							throw new SaltException('A class named ['.$fullClassName.'] already exists. '.__CLASS__.' cannot generate the same class.');
 						}
 
+						$this->generateHtaccess($this->_saltCachePath);
+
 						$this->generateClass($source, $fileName, $namespace, $currentLocale, $parent);
 						$parent = $currentLocale;
 
 						if ($this->_saltGenerationMode === self::MODE_REGENERATE_ON_THE_FLY) {
+
 							// remove old classes
 							$d = opendir($this->_saltCachePath);
 							while(($file = readdir($d)) !== FALSE) {

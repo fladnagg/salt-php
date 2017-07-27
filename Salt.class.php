@@ -103,7 +103,12 @@ class Salt {
 		if (!$i18nInitialized) {
 			$i18nInitialized = TRUE;
 			$i18n = I18n::getInstance('SALT', PATH, I18N_MODE);
-			$i18n->init(I18N_DEFAULT_LOCALE)->alias('salt\L');
+			if (I18N_GENERATE)  {
+				$i18n->generate();
+				echo 'SALT I18n classes generated - exit application. Please remove salt\I18N_GENERATE constant'; flush();
+				exit(0);
+			}
+			$i18n->init(I18N_LOCALE)->alias('salt\L');
 		}
 	}
 

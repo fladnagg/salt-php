@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * DatabaseHelper class
  *
@@ -47,7 +47,7 @@ class DatabaseHelper {
 		// insert after all create
 		/** @var Base $obj */
 		foreach($objects as $obj) {
-			$newObjects = $obj->initAfterCreateTable();
+			$newObjects = $obj->initAfterCreateTable($db);
 			if ($newObjects !== NULL) {
 				$insert = new InsertQuery($newObjects);
 				$db->execInsert($insert);

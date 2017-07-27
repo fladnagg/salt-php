@@ -78,9 +78,10 @@ abstract class Base extends Identifiable {
 
 	/**
 	 * doing some stuff after creating table
+	 * @param DBHelper $db database where table is created
 	 * @return static[] objects to create in table
 	 */
-	public function initAfterCreateTable() {
+	public function initAfterCreateTable(DBHelper $db) {
 		// do nothing
 		return NULL;
 	}

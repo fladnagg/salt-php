@@ -68,6 +68,7 @@ class CreateTableQuery extends Query {
 					case SqlDateFormat::TIMESTAMP : return 'TIMESTAMP';
 					case SqlDateFormat::DATETIME : return 'DATETIME';
 					case SqlDateFormat::SHORT_DATE : return 'DATETIME';
+					case SqlDateFormat::DATE : return 'DATE';
 					default : return 'TEXT';
 				}
 				break;
