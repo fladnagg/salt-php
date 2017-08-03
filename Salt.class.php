@@ -29,6 +29,8 @@ Salt::addClassFolder(PATH, __NAMESPACE__, '.class.php', 'vendor');
 // register Salt autoload
 spl_autoload_register(__NAMESPACE__.'\Salt::loadClass');
 
+include_once __DIR__.DIRECTORY_SEPARATOR.'version.php';
+
 /**
  * SALT main class
  */
@@ -104,8 +106,13 @@ class Salt {
 			$i18nInitialized = TRUE;
 			$i18n = I18n::getInstance('SALT', PATH, I18N_MODE);
 			if (I18N_GENERATE)  {
-				$i18n->generate();
-				echo 'SALT I18n classes generated - exit application. Please remove salt\I18N_GENERATE constant'; flush();
+				$i18n->generate(TRUE);
+				echo '<br/>Exit application - please remove salt\I18N_GENERATE constant'; flush();
+				exit(0);
+			}
+			if (I18N_CHECK) {
+				$i18n->check(TRUE);
+				echo '<br/>Exit application - please remove salt\I18N_CHECK constant'; flush();
 				exit(0);
 			}
 			$i18n->init(I18N_LOCALE)->alias('salt\L');

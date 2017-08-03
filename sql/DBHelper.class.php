@@ -80,7 +80,7 @@ class DBHelper {
 	 * @param string $charset charset of database
 	 * @param array $options PDO options array
 	 * @throws SaltException if database already defined
-	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html
+	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html for mysql charset list
 	 */
 	public static function registerDefault($name, $host, $port, $db, $user, $pass, $charset, array $options = array()) {
 		if (self::$default !== NULL) {
@@ -100,7 +100,7 @@ class DBHelper {
 	 * @param string $pass password of user
 	 * @param string $charset charset of database
 	 * @param array $options PDO options array
-	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html
+	 * @see http://dev.mysql.com/doc/refman/5.6/en/charset-charsets.html for mysql charset list
 	 */
 	public static function register($name, $host, $port, $db, $user, $pass, $charset, array $options = array()) {
 		self::$allDatas[$name] = new DBConnexion($host, $port, $db, $user, $pass, $charset, $options);

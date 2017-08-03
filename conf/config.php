@@ -15,6 +15,7 @@ $_defaultValues = array(
 	'I18N_LOCALE'					=> 'en',
 	'I18N_MODE'						=> I18n::MODE_REGENERATE_ON_THE_FLY,
 	'I18N_GENERATE'					=> FALSE,
+	'I18N_CHECK'					=> FALSE,
 );
 foreach($_defaultValues as $k => $v) {
 	if (!defined(__NAMESPACE__.'\\'.$k)) {
@@ -41,4 +42,6 @@ if (false) { // for doc...
 	define('salt\I18N_MODE', I18n::MODE_REGENERATE_ON_THE_FLY);
 	/** Launch I18n class regeneration */
 	define('salt\I18N_GENERATE', FALSE);
+	/** Launch I18n locales check */
+	define('salt\I18N_CHECK', FALSE);
 }

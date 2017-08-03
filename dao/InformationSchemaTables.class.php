@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * InformationSchemaTables class
  *
@@ -9,6 +9,9 @@ namespace salt;
 
 /**
  * DAO for information_schema.tables of mysql instances
+ *
+ * @property string $table_name
+ * @property string $table_schema
  */
 class InformationSchemaTables extends Base {
 
@@ -17,7 +20,7 @@ class InformationSchemaTables extends Base {
 	 * @see \salt\Base::metadata()
 	 */
 	protected function metadata() {
-		
+
 		self::MODEL()
 			->registerId('table_name')
 			->registerTableName('information_schema.tables')
