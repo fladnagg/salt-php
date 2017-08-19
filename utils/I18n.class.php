@@ -481,12 +481,23 @@ class I18n {
 
 		if (!file_exists($file)) {
 			$content=<<<'HTACCESS'
-<IfVersion >= 2.4>
-    Require all denied
-</IfVersion>
-<IfVersion < 2.4>
-    Deny from all
-</IfVersion>
+<IfModule mod_version.c>
+	<IfVersion >= 2.4>
+		Require all denied
+	</IfVersion>
+	<IfVersion < 2.4>
+		Deny from all
+	</IfVersion>
+</IfModule>
+
+<IfModule !mod_version.c>
+	<IfModule mod_authz_core.c>
+		Require all denied
+	</IfModule>
+	<IfModule !mod_authz_core.c>
+		Deny from all
+	</IfModule>
+</IfModule>
 HTACCESS;
 			file_put_contents($file, $content);
 		}
