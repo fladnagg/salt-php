@@ -529,7 +529,7 @@ HTACCESS;
 				return NULL;
 			}
 
-			$namespace = __NAMESPACE__.'\\i18n\\'.$this->_saltName;
+			$namespace = __NAMESPACE__.'\\i18n\\'.preg_replace('/(^[^A-Za-z]|[^_A-Za-z0-9])/', '_', $this->_saltName);
 			// create all classes in reverse order : from generic to specific for create parent before children
 			$parent = NULL;
 			foreach(array_reverse($allLocales, TRUE) as $currentLocale => $source) {
@@ -607,6 +607,14 @@ HTACCESS;
 		return $this;
 	}
 
+	/**
+	 * Return selected locale after init() call
+	 * @return string current locale
+	 */
+	public function getCurrentLocale() {
+		return $this->_saltLocale;
+	}
+	
 	/**
 	 * Generate and write a class to disk
 	 *

@@ -13,14 +13,18 @@ namespace salt;
  * We cannot allow user to overwrite it. So the only way to change it is here, and it changed it for all applications linked to this SALT installation.<br/>
  * If we allow overwrite in each application, and if two applications use different value, classes generated for SALT framework will became unconsistent :<br/>
  * the I18N_DEFAULT_LOCALE set the parent class of all generated classes, so we cannot have a class A with parent B for an application, and class B with parent A for another.
-  */
+ */
 define('salt\I18N_DEFAULT_LOCALE', 'en');
 
 $_defaultValues = array(
 	'CHARSET'						=> 'UTF-8',
 	'DEFAULT_DATE_DISPLAY_FORMAT' 	=> 'd/m/Y',
 	'BENCH_PRECISION'				=> 5,
-	'I18N_LOCALE'					=> 'en',
+	/**
+	 * You can define it in your application, before calling Salt::config(), or pass an array of locales in Salt::config($locales) and 
+	 * the I18N_LOCALE will be defined by SALT at the selected locale. 
+	 */
+	//'I18N_LOCALE'					=> 'en',
 	'I18N_MODE'						=> I18n::MODE_REGENERATE_ON_THE_FLY,
 	'I18N_GENERATE'					=> FALSE,
 	'I18N_CHECK'					=> FALSE,
