@@ -89,17 +89,19 @@ class Salt {
 
 	/**
 	 * Load SALT configuration
+	 * @param string[] $locales Locales to try to initialize. First available locale is used. 
 	 */
-	public static function config() {
+	public static function config($locales = NULL) {
 		require_once(PATH.'conf/config.php');
 		In::setCharset(CHARSET);
-		self::initI18n();
+		self::initI18n($locales);
 	}
 
 	/**
 	 * Initialize I18n instance
+	 * @param string[] $locales Locales to try to initialize. First available locale is used.
 	 */
-	private static function initI18n() {
+	private static function initI18n($locales) {
 		static $i18nInitialized = FALSE;
 
 		if (!$i18nInitialized) {
@@ -115,7 +117,23 @@ class Salt {
 				echo '<br/>Exit application - please remove salt\I18N_CHECK constant'; flush();
 				exit(0);
 			}
-			$i18n->init(I18N_LOCALE)->alias('salt\L');
+			if (defined('salt\I18N_LOCALE')) {
+				$locales = array(I18N_LOCALE);
+			} else if ($locales === NULL) {
+				$locales = array();
+			} else if (!is_array($locales)) {
+				$locales = array($locales);
+			}
+			$locales[] = I18N_DEFAULT_LOCALE;
+
+			$i18n->init($locales)->alias('salt\L');
+			
+			if (!defined('salt\I18N_LOCALE')) {
+				/** 
+				 * @ignore 
+				 */
+				define('salt\I18N_LOCALE', $i18n->getCurrentLocale());
+			}
 		}
 	}
 
