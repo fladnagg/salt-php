@@ -571,9 +571,7 @@ HTACCESS;
 						}
 
 						$this->generateHtaccess($this->_saltCachePath);
-
 						$this->generateClass($source, $fileName, $namespace, $currentLocale, $parent);
-						$parent = $currentLocale;
 
 						if (($this->_saltGenerationMode === self::MODE_REGENERATE_ON_THE_FLY) && !$forceGenerate) {
 
@@ -595,6 +593,9 @@ HTACCESS;
 						require_once($fileName);
 					}
 				}
+
+				// always define parent
+				$parent = $currentLocale;
 
 				// set locale to last found locale
 				$locale = $currentLocale;
