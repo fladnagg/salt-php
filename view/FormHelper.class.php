@@ -164,7 +164,7 @@ class FormHelper {
 
 		$newParams = self::parseParams($query, $params);
 		if (count($newParams) > 0) {
-			$action .= '?'.http_build_query($newParams);
+			$action .= '?'.self::httpBuildQuery($newParams);
 		}
 
 		if ($anchor !== NULL) {
@@ -177,6 +177,30 @@ class FormHelper {
 	}
 
 	/**
+	 * Build an HTTP query from an associative array like http_build_query
+	 *
+	 * Improved http_build_query : parameters with NULL value will be converted to "?parameter"
+	 *
+	 * @param mixed[] $params
+	 * @return string query string
+	 * @see http://php.net/manual/en/function.http-build-query.php
+	 */
+	private static function httpBuildQuery($params) {
+		$result = http_build_query($params);
+		if (strlen($result) > 0) {
+			$result = array($result);
+		} else {
+			$result = array();
+		}
+		foreach($params as $k => $v) {
+			if ($v === NULL) {
+				array_unshift($result, urlencode($k));
+			}
+		}
+		return implode('&', $result);
+	}
+
+	/**
 	 * Compute new parameters list for form tag
 	 * @param string $query Query of URL in QUERY_STRING format : var1=value1&var2=value2...
 	 * @param string[] $params List of varX to keep or redefine. '*' for reuse all request parameters, key=>NULL for remove key parameter
@@ -184,7 +208,20 @@ class FormHelper {
 	 */
 	private static function parseParams($query, array $params) {
 		$newParams = array();
-		parse_str($query, $paramsRequest); // $paramsRequest is an output var
+
+		parse_str($query, $paramsRequest);
+		/**
+		 * PHP functions parse_str do NOT make a difference between "?foo" and "?foo="
+		 * This implementation return NULL and empty string for values in theses cases.
+		 */
+		foreach(explode('&', $query) as $param) {
+			$param = explode('=', $param);
+			if (count($param) === 1) {
+				$key = preg_replace('#[^A-Za-z_]#', '_', $param[0]);
+				$paramsRequest[$key] = NULL;
+			}
+		}
+
 		foreach($params as $k => $v) {
 			if (is_numeric($k)) {
 				if ($v === '*') {
