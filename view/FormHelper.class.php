@@ -273,6 +273,8 @@ class FormHelper {
 
 		$args = func_get_args();
 
+		self::$values = NULL;
+		
 		$first = array_shift($args);
 		if ($Input->{self::$method}->ISSET->$first) {
 			$values = $Input->{self::$method}->RAW->$first;

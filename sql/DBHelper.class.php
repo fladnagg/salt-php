@@ -230,7 +230,7 @@ class DBHelper {
 			$paginationBinds = SqlBindField::getPaginationBinds($pagination);
 			list($offset, $limit) = array_keys($paginationBinds);
 
-			$sql.=' LIMIT '.$offset.','.$limit;
+			$sql.=' LIMIT :'.$offset.', :'.$limit;
 			$binds = array_merge($binds, $paginationBinds);
 		}
 
@@ -239,6 +239,7 @@ class DBHelper {
 			Benchmark::start('salt.prepare');
 			$st = $this->base->prepare($sql);
 			foreach($binds as $param => $data) {
+				$param = ':'.$param;
 				if ($data['value'] === NULL) {
 					$st->bindValue($param, $data['value'], PDO::PARAM_NULL);
 				} else {
@@ -284,6 +285,48 @@ class DBHelper {
 	}
 
 	/**
+	 * Flatten binds. If some binds are array values, linearize them
+	 * 
+	 * @param string $q SQL query string
+	 * @param mixed[] $binds binds, in multiple format, as input/output parameter
+	 * @return string modified SQL query string
+	 */
+	private function flattenBinds($sql, &$binds) {
+		// TODO : handle values in array('value' => , 'type' => ) format
+		$newParams = array();
+		foreach($binds as $k => $v) {
+			if (is_array($v) && !in_array('value', array_keys($v), TRUE)) {
+				$extraKeys = array();
+				$callAgainOn = array();
+				foreach($v as $kk => $vv) {
+					$extraKeys[$k.'_'.$kk] = $vv;
+					if (is_array($vv) && !in_array('value', array_keys($vv), TRUE)) {
+						$callAgainOn[$k.'_'.$kk] = $vv;
+					}
+				}
+				$sql = preg_replace('#:'.$k.'([^:_a-zA-Z0-9]|$)#', '(:'.implode(', :', array_keys($extraKeys)).')$1', $sql);
+
+				if (count($callAgainOn) > 0) {
+					// keys will be recomputed... so we remove them
+					$extraKeys = array_diff_key($extraKeys, $callAgainOn);
+					// linearize sub array by this call
+					$sql = $this->flattenBinds($sql, $callAgainOn);
+					// add real keys
+					$extraKeys = array_merge($extraKeys, $callAgainOn);
+				}
+				
+				$newParams = array_merge($newParams, $extraKeys);
+			} else if (is_array($v) || (preg_match('#:'.$k.'([^:_a-zA-Z0-9]|$)#', $sql) === 1)) {
+				$newParams[$k] = $v;
+			}
+		}
+
+		$binds = $newParams;
+
+		return $sql;
+	}
+	
+	/**
 	 * Execute a query from a SQL text
 	 * @param string $sql sql text
 	 * @param array $binds array of placeholder (key => value). If we want to set the type for bind a value, we can suffix the key by @
@@ -296,7 +339,11 @@ class DBHelper {
 
 		Benchmark::start('salt.prepare');
 		$debugBinds = array();
+		
+		$sql = $this->flattenBinds($sql, $binds);
+
 		$st = $this->base->prepare($sql);
+		
 		foreach($binds as $k => $v) {
 			$type = NULL;
 			if (is_array($v) && isset($v['value']) && isset($v['type'])) {
@@ -310,14 +357,23 @@ class DBHelper {
 				}
 				$param = $k;
 				$v = $v['value'];
-			} else {
+			} else if (strpos($k, '@') !== FALSE) {
 				@list($param, $type) = explode('@', $k, 2);
 				if ($type !== NULL) {
 					$type = intval($type);
 				}
+			} else {
+				$param = $k;
+				if ($v === NULL) {
+					$type = PDO::PARAM_NULL;
+				} else if (is_numeric($v)) {
+					$type = PDO::PARAM_INT;
+				} else {
+					$type = PDO::PARAM_STR;
+				}
 			}
 			$debugBinds[$param] = array('value' => $v, 'type' => ($type === PDO::PARAM_INT)?FieldType::NUMBER:FieldType::TEXT, 'private' => FALSE);
-			$st->bindValue($param, $v, $type);
+			$st->bindValue(':'.$param, $v, $type);
 		}
 		$time = Benchmark::end('salt.prepare');
 		Benchmark::addTime('salt.queries-prepare', $time);
@@ -328,18 +384,42 @@ class DBHelper {
 			$time = Benchmark::end('salt.query');
 			Benchmark::addTime('salt.queries-exec', $time);
 
-			$this->addDebugData($sql, $debugBinds, round($time, BENCH_PRECISION));
+			$this->addDebugData(str_replace("\n", ' ', $sql), $debugBinds, round($time, BENCH_PRECISION));
 		} catch (\PDOException $ex) {
-			$this->addDebugData($sql, $debugBinds, NULL);
+			$this->addDebugData(str_replace("\n", ' ', $sql), $debugBinds, NULL);
 			throw new DBException($ex->getMessage(), $sql, $ex);
 		} catch (\Exception $ex) {
-			$this->addDebugData($sql, $debugBinds, NULL);
+			$this->addDebugData(str_replace("\n", ' ', $sql), $debugBinds, NULL);
 			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 
 		return $st;
 	}
 
+	/**
+	 * Return the last inserted ID
+	 * 
+	 * @see http://php.net/manual/en/pdo.lastinsertid.php
+	 * @param string $name sequence name or NULL
+	 * @return string the last insert ID
+	 */
+	public function getLastId($name = NULL) {
+		return $this->base->lastInsertId($name);
+	}
+	
+	/**
+	 * Return the 3 elements array of PDO::errorInfo() if an error occurred, or FALSE if all is right
+	 * 
+	 * @return array|boolean
+	 */
+	public function getLastError() {
+		$code = $this->base->errorCode();
+		if (!in_array($code, array('', '00000'))) {
+			return $this->base->errorInfo();
+		}
+		return FALSE;
+	}
+	
 	/**
 	 * Add some information about query in Benchmark data
 	 * @param string $sql SQL text query (can be count or not count query)
@@ -349,22 +429,27 @@ class DBHelper {
 	private function addDebugData($sql, array $binds, $temps) {
 		Benchmark::start('salt.queries-debugInfo');
 		// the goal is NOT to execute the query here, but only to build it for a debug display if needed : binds values are NOT escaped !
-		$sqlValues = preg_replace_callback('(:[vL][0-9]+)', function($bind) use(&$binds) {
-			if (isset($binds[$bind[0]])) {
-				$b = $binds[$bind[0]];
-				if ($b['private']) {
-					$v = '/*HIDDEN*/';
+		if (count($binds) > 0) {
+			$keys = implode('|', array_keys($binds));
+			$sqlValues = preg_replace_callback('#(?::('.$keys.'))([^:a-zA-Z0-9]|$)#', function($match) use(&$binds) {
+				if (isset($binds[$match[1]])) {
+					$b = $binds[$match[1]];
+					if ($b['private']) {
+						$v = '/*HIDDEN*/';
+					} else {
+						$v = $b['value'];
+						if ($b['type'] === FieldType::TEXT) $v = '\''.$v.'\'';
+						if ($b['type'] === FieldType::BOOLEAN) $v = ($v)?1:0;
+						if ($v === NULL) $v='NULL';
+					}
 				} else {
-					$v = $b['value'];
-					if ($b['type'] === FieldType::TEXT) $v = '\''.$v.'\'';
-					if ($b['type'] === FieldType::BOOLEAN) $v = ($v)?1:0;
-					if ($v === NULL) $v='NULL';
+					$v = '/*MISSING*/';
 				}
-			} else {
-				$v = '/*MISSING*/';
-			}
-			return $v;
-		}, $sql);
+				return $v.$match[2];
+			}, $sql);
+		} else {
+			$sqlValues = $sql;
+		}
 
 		Benchmark::addData('salt.queries', array('Query' => $sql, 'Time' => ($temps === NULL)?'ERROR':$temps));
 		Benchmark::addData('salt.queriesValues', $sqlValues);

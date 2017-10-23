@@ -68,7 +68,7 @@ abstract class SqlBindField {
 			return '('.implode(',', $binds).')';
 		}
 
-		$bind = ':v'.(self::$_salt_bindNumber++);
+		$bind = 'v'.(self::$_salt_bindNumber++);
 
 		if ($type === NULL) {
 			$type = FieldType::guessType($value);
@@ -89,7 +89,7 @@ abstract class SqlBindField {
 		}
 		$this->_salt_sources[$source][] = $bind;
 
-		return $bind;
+		return ':'.$bind;
 	}
 
 	/**
@@ -116,8 +116,8 @@ abstract class SqlBindField {
 	 * @return mixed[][] binds for the Pagination : array of bindName => array of ('value' => ..., 'type' => ...)
 	 */
 	public static function getPaginationBinds(Pagination $pagination) {
-		$offset = ':L'.(self::$_salt_bindPaginationNumber++);
-		$limit = ':L'.(self::$_salt_bindPaginationNumber++);
+		$offset = 'L'.(self::$_salt_bindPaginationNumber++);
+		$limit = 'L'.(self::$_salt_bindPaginationNumber++);
 		$binds = array(
 			$offset => array(
 				'value' => $pagination->getOffset(),
