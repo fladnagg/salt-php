@@ -708,6 +708,13 @@ class {$className} {$parent}{
 {$datas}
 
 	public static function __callStatic(\$name, \$args) {
+		foreach(\$args as \$k => \$arg) {
+			if (!is_scalar(\$arg) && (\$arg !== NULL)) {
+				\$args[\$k] = \salt\L::error_label;
+				\$caller = debug_backtrace();
+				error_log('['.__NAMESPACE__.'] '.\salt\L::error_i18n_parameter(\$k, \$name).' at '.\$caller[1]['file'].':'.\$caller[1]['line']);
+			}
+		}
 		return vsprintf(constant("self::" . \$name), \$args);
 	}
 }

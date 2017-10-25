@@ -1,6 +1,10 @@
 
 error:
+  label: "*ERROR*"
   not_implemented: Not implemented.
+
+  i18n:
+    parameter: Parameter %s of %s invalid
 
   db:
     unknown: Unknown database %s. Please register it before using.
