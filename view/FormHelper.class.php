@@ -163,6 +163,7 @@ class FormHelper {
 		$action = first($datas);
 
 		$newParams = self::parseParams($query, $params);
+
 		if (count($newParams) > 0) {
 			$action .= '?'.self::httpBuildQuery($newParams);
 		}
@@ -226,7 +227,9 @@ class FormHelper {
 			if (is_numeric($k)) {
 				if ($v === '*') {
 					foreach($paramsRequest as $kk => $vv) {
-						$newParams[$kk] = $vv;
+						if ($vv !== '') {
+							$newParams[$kk] = $vv;
+						}
 					}
 				} else if (array_key_exists($v, $paramsRequest)) {
 					$newParams[$v] = $paramsRequest[$v];
@@ -274,7 +277,7 @@ class FormHelper {
 		$args = func_get_args();
 
 		self::$values = NULL;
-		
+
 		$first = array_shift($args);
 		if ($Input->{self::$method}->ISSET->$first) {
 			$values = $Input->{self::$method}->RAW->$first;
