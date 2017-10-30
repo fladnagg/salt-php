@@ -13,6 +13,7 @@ error:
       insert: Query have inserted %s rows instead of expected %s.
       delete: Query have deleted %s rows instead of expected %s.
       update: Query have modified %s rows instead of expected %s.
+      rows: Query have affected %s rows instead of expected %s.
     missing_where: You don't have a WHERE clause on %s. Please call allowEmptyWhere() if you really want to do this.
     missing_alias: Cannot find the alias [%s] in the query.
     mixed_types: Cannot handle mixed objects type at the same time. The first object is a [%s]. Found another object in list of type [%s].

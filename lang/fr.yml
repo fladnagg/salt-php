@@ -13,6 +13,7 @@ error:
       insert: La requête a ajouté %s lignes au lieu des %s attendues.
       delete: La requête a supprimé %s lignes au lieu des %s attendues.
       update: La requête a modifié %s lignes au lieu des %s attendues.
+      rows: La requête a concerné %s lignes au lieu des %s attendues.
     missing_where: Aucune clause WHERE n'a été défini sur la requête %s. Merci d'appeler allowEmptyWhere() si c'est réellement souhaité.
     missing_alias: Impossible de retrouver l'alias [%s] dans la requête.
     mixed_types: Impossible de prendre en compte des types d'objets différents en même temps. Le premier objet est de type [%s]. Un autre objet de la liste est de type [%s].

@@ -20,7 +20,9 @@ abstract class Base extends Identifiable {
 	/** State of an object created by PDO but not populated yet. After populate, the object will be at NEW state */
 	const _SALT_STATE_NEW_LOADING=11;
 	/** State of an object created by PDO but not populated yet */
-	const _SALT_STATE_LOADING=21;
+	const _SALT_STATE_LOADING=12;
+	/** State of an object created by PDO but not populated yet, with dynamic columns initialization (we don't know columns at object creation) */
+	const _SALT_STATE_DYNAMIC_LOADING = 13;
 	/** State of an object created and populated by PDO fetch */
 	const _SALT_STATE_LOADED=20;
 	/** State of a modified object after being loaded by PDO */
@@ -283,6 +285,8 @@ abstract class Base extends Identifiable {
 						}
 					}
 				}
+			} elseif (count($loadedFields) === 0) {
+				$this->_saltState = self::_SALT_STATE_DYNAMIC_LOADING;
 
 			} else {
 				$this->_saltState = self::_SALT_STATE_LOADING; // for query loaded object, define all loaded fields
@@ -377,8 +381,8 @@ abstract class Base extends Identifiable {
 	 * @internal Called after PDO populate for setting correct state.
 	 */
 	public function afterLoad() {
-		$this->checkState(array(self::_SALT_STATE_LOADING, self::_SALT_STATE_NEW_LOADING));
-		$this->_saltState = ($this->_saltState === self::_SALT_STATE_LOADING)?self::_SALT_STATE_LOADED:self::_SALT_STATE_NEW;
+		$this->checkState(array(self::_SALT_STATE_LOADING, self::_SALT_STATE_DYNAMIC_LOADING, self::_SALT_STATE_NEW_LOADING));
+		$this->_saltState = ($this->_saltState === self::_SALT_STATE_NEW_LOADING)?self::_SALT_STATE_NEW:self::_SALT_STATE_LOADED;
 	}
 
 	/**
@@ -432,11 +436,11 @@ abstract class Base extends Identifiable {
 		$this->checkNotState(self::_SALT_STATE_READONLY, L::error_model_change_readonly);
 		$this->checkNotState(self::_SALT_STATE_DELETED, L::error_model_change_deleted);
 
-		$this->checkFieldExists($fieldName, TRUE);
+		$this->checkFieldExists($fieldName, TRUE, ($this->_saltState === self::_SALT_STATE_DYNAMIC_LOADING));
 
-		$field = $this->getField($fieldName);
+		$field = $this->getField($fieldName, ($this->_saltState === self::_SALT_STATE_DYNAMIC_LOADING));
 
-		if (($this->_saltState === self::_SALT_STATE_LOADING) && ($value === '')) {
+		if (in_array($this->_saltState, array(self::_SALT_STATE_LOADING, self::_SALT_STATE_DYNAMIC_LOADING)) && ($value === '')) {
 			$value = Field::EMPTY_STRING;
 		}
 
@@ -446,7 +450,7 @@ abstract class Base extends Identifiable {
 		// value can be null : array_key_exists instead of isset
 		if (array_key_exists($fieldName, $this->_saltExtraFields)) {
 			$this->_saltExtraFields[$fieldName] = $value;
-		} else if ($this->_saltState === self::_SALT_STATE_LOADING) {
+		} else if (in_array($this->_saltState, array(self::_SALT_STATE_LOADING, self::_SALT_STATE_DYNAMIC_LOADING))) {
 			// first load
 			$this->_saltLoadValues[$fieldName] = $value;
 		} else {

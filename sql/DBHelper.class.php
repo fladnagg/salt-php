@@ -208,7 +208,7 @@ class DBHelper {
 	 * @param Query $query the query
 	 * @param boolean $count true if count query have to be executed
 	 * @param Pagination $pagination pagination if required
-	 * @return \PDOStatement the PDOStatement after execution
+	 * @return SqlStatement the statement after execution
 	 * @throws DBException if prepare or execute query failed with a PDOException
 	 * @throws SaltException if something else failed
 	 */
@@ -285,17 +285,36 @@ class DBHelper {
 	}
 
 	/**
-	 * Flatten binds. If some binds are array values, linearize them
-	 * 
+	 * Flatten query. If some binds are array values, linearize them
+	 *
 	 * @param string $q SQL query string
 	 * @param mixed[] $binds binds, in multiple format, as input/output parameter
 	 * @return string modified SQL query string
 	 */
-	private function flattenBinds($sql, &$binds) {
+	private function flattenSqlQuery($sql, &$binds) {
 		// TODO : handle values in array('value' => , 'type' => ) format
+
+		$sql = preg_replace_callback('#\[([^\]]+)\]#', function($matches) {
+			if (count($matches) > 1) {
+				$cl = $matches[1];
+				if (class_exists($cl) && is_subclass_of($cl, 'salt\Base')) {
+					return $cl::MODEL()->getTableName();
+				}
+			}
+			return $matches[0];
+		}, $sql);
+
 		$newParams = array();
 		foreach($binds as $k => $v) {
+
 			if (is_array($v) && !in_array('value', array_keys($v), TRUE)) {
+
+				$parenthesis = TRUE;
+				if (strpos($k, '@') === 0) {
+					$k = substr($k, 1);
+					$parenthesis = FALSE;
+				}
+
 				$extraKeys = array();
 				$callAgainOn = array();
 				foreach($v as $kk => $vv) {
@@ -304,17 +323,21 @@ class DBHelper {
 						$callAgainOn[$k.'_'.$kk] = $vv;
 					}
 				}
-				$sql = preg_replace('#:'.$k.'([^:_a-zA-Z0-9]|$)#', '(:'.implode(', :', array_keys($extraKeys)).')$1', $sql);
+				$value = ':'.implode(', :', array_keys($extraKeys));
+				if ($parenthesis) {
+					$value = '('.$value.')';
+				}
+				$sql = preg_replace('#:'.$k.'([^:_a-zA-Z0-9]|$)#', $value.'$1', $sql);
 
 				if (count($callAgainOn) > 0) {
 					// keys will be recomputed... so we remove them
 					$extraKeys = array_diff_key($extraKeys, $callAgainOn);
 					// linearize sub array by this call
-					$sql = $this->flattenBinds($sql, $callAgainOn);
+					$sql = $this->flattenSqlQuery($sql, $callAgainOn);
 					// add real keys
 					$extraKeys = array_merge($extraKeys, $callAgainOn);
 				}
-				
+
 				$newParams = array_merge($newParams, $extraKeys);
 			} else if (is_array($v) || (preg_match('#:'.$k.'([^:_a-zA-Z0-9]|$)#', $sql) === 1)) {
 				$newParams[$k] = $v;
@@ -325,25 +348,26 @@ class DBHelper {
 
 		return $sql;
 	}
-	
+
 	/**
 	 * Execute a query from a SQL text
 	 * @param string $sql sql text
 	 * @param array $binds array of placeholder (key => value). If we want to set the type for bind a value, we can suffix the key by @
 	 * 			followed by a PDO_PARAM_* constant<br/>For example : Par exemple, array(':param@'.PDO::PARAM_INT => 3)<br/>
 	 * 			value can also be an array with two keys for compatibily with classic queries : array('value' => value, 'type' => FieldType)
-	 * @return \PDOStatement PDOStatement after query execution
+	 * @param int|NULL $expectedRows check the number of rows affected by the query. NULL for ignoring
+	 * @return SqlStatement Statement after query execution
 	 */
-	public function execSQL($sql, array $binds = array()) {
+	public function execSQL($sql, array $binds = array(), $expectedRows = NULL) {
 		Benchmark::increment('salt.queries');
 
 		Benchmark::start('salt.prepare');
 		$debugBinds = array();
-		
-		$sql = $this->flattenBinds($sql, $binds);
+
+		$sql = $this->flattenSqlQuery($sql, $binds);
 
 		$st = $this->base->prepare($sql);
-		
+
 		foreach($binds as $k => $v) {
 			$type = NULL;
 			if (is_array($v) && isset($v['value']) && isset($v['type'])) {
@@ -393,12 +417,20 @@ class DBHelper {
 			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
 		}
 
+		if ($expectedRows !== NULL) {
+			$changedRows = $st->rowCount();
+			if (($expectedRows !== $changedRows)) {
+				throw new RowCountException(L::error_query_expected_rows($changedRows, $expectedRows),
+						$st->queryString, $changedRows, $expectedRows);
+			}
+		}
+
 		return $st;
 	}
 
 	/**
 	 * Return the last inserted ID
-	 * 
+	 *
 	 * @see http://php.net/manual/en/pdo.lastinsertid.php
 	 * @param string $name sequence name or NULL
 	 * @return string the last insert ID
@@ -406,10 +438,10 @@ class DBHelper {
 	public function getLastId($name = NULL) {
 		return $this->base->lastInsertId($name);
 	}
-	
+
 	/**
 	 * Return the 3 elements array of PDO::errorInfo() if an error occurred, or FALSE if all is right
-	 * 
+	 *
 	 * @return array|boolean
 	 */
 	public function getLastError() {
@@ -419,7 +451,7 @@ class DBHelper {
 		}
 		return FALSE;
 	}
-	
+
 	/**
 	 * Add some information about query in Benchmark data
 	 * @param string $sql SQL text query (can be count or not count query)
@@ -459,7 +491,7 @@ class DBHelper {
 	/**
 	 * Execute an INSERT query
 	 * @param InsertQuery $query the query to execute
-	 * @return string \PDOStatement::lastInsertId()
+	 * @return string \PDO::lastInsertId()
 	 * @throws RowCountException if query don't insert the expected number of objects
 	 */
 	public function execInsert(InsertQuery $query) {
@@ -713,9 +745,14 @@ class DBConnexion {
 				}
 				$options[PDO::MYSQL_ATTR_INIT_COMMAND].='SET NAMES '.$this->charset;
 			}
+
 			$pdo = new PDO('mysql:host='.$this->host.';port='.$this->port.';dbname='.$this->db.';charset='.$this->charset,
 					$this->user, $password, $options);
 			$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+			$pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, array(__NAMESPACE__.'\\SqlStatement', array()));
+		} catch (\PDOException $ex) {
+			error_reporting($oldErrorReporting);
+			throw new DBException($ex->getMessage(), '', $ex);
 		} catch (\Exception $ex) {
 			error_reporting($oldErrorReporting);
 			throw new SaltException($ex->getMessage(), $ex->getCode(), $ex);
