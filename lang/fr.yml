@@ -1,6 +1,10 @@
 
 error:
+  label: "*ERREUR*"
   not_implemented: Non implémenté.
+
+  i18n:
+    parameter: Paramètre %s de %s incorrect
 
   db:
     unknown: Base de donnée %s inconnue. Merci de l'enregistrer avant de l'utiliser.
