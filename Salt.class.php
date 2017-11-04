@@ -89,7 +89,7 @@ class Salt {
 
 	/**
 	 * Load SALT configuration
-	 * @param string[] $locales Locales to try to initialize. First available locale is used. 
+	 * @param string[] $locales Locales to try to initialize. First available locale is used.
 	 */
 	public static function config($locales = NULL) {
 		require_once(PATH.'conf/config.php');
@@ -127,10 +127,10 @@ class Salt {
 			$locales[] = I18N_DEFAULT_LOCALE;
 
 			$i18n->init($locales)->alias('salt\L');
-			
+
 			if (!defined('salt\I18N_LOCALE')) {
-				/** 
-				 * @ignore 
+				/**
+				 * @ignore
 				 */
 				define('salt\I18N_LOCALE', $i18n->getCurrentLocale());
 			}
@@ -336,6 +336,7 @@ class Salt {
 	public static function getClassesByPath($path) {
 		$result = array();
 
+		$path = str_replace('/', DIRECTORY_SEPARATOR, $path);
 		foreach(self::$ALL_CLASSES as $className => $p) {
 			if (strpos($p, $path) === 0) {
 				$result[$className] = $p;

@@ -583,6 +583,64 @@ class FormHelper {
 	}
 
 	/**
+	 * Return a checkbox HTML tag with a select tag implementation
+	 *
+	 * This tag need jQuery and is compatible with jQuery .val(..).change() set method<br/>
+	 * Don't forget to call change() after val(...)
+	 *
+	 * @param string $name name of the tag
+	 * @param string $value value of the tag
+	 * @param string|int $checkedValue value for checked state
+	 * @param string|int $uncheckedValue value for unchecked state
+	 * @param string[] $classes CSS classes of the tag (added to checkbox and select)
+	 * @param mixed[] $others all other attributes for the tag (added to select only)
+	 * @return string HTML text tag
+	 */
+	public static function checkbox($name, $value = NULL, $checkedValue = 1, $uncheckedValue = 0, $classes = array(), array $others = array()) {
+		$options = array($uncheckedValue, $checkedValue);
+		$options = array_combine($options, $options);
+
+		if (!isset($others['style'])) {
+			$others['style']='';
+		} else {
+			$others['style'].=';';
+		}
+		$others['style'].='display:none !important';
+
+		$jsonChecked = json_encode($checkedValue);
+		$jsonUnchecked = json_encode($uncheckedValue);
+
+		if ($value === NULL) {
+			$checked = (FormHelper::getValue($name) == $checkedValue);
+		} else {
+			$checked = ($value == $checkedValue);
+		}
+
+		$checkInput = self::input(NULL, 'checkbox', $checked, $classes, array('onchange' => <<<JS
+javascript: if(typeof jQuery === 'undefined'){alert('jQuery is required');} else {
+	jQuery(this).next('select').val(this.checked?{$jsonChecked}:{$jsonUnchecked}).change()
+}
+JS
+));
+		$onchange = '';
+		if (isset($others['onchange'])) {
+			$onchange = trim($others['onchange']);
+			if (preg_match('#^javascript\s*:#', $onchange) === 1) {
+				$onchange = last(explode(':', $onchange, 2));
+			}
+			$onchange=';'.$onchange;
+		}
+		$others['onchange'] = <<<JS
+javascript: if(typeof jQuery === 'undefined'){alert('jQuery is required');} else {
+	jQuery(this).prev('input').prop('checked', jQuery(this).val()==={$jsonChecked})
+}
+JS;
+		$others['onchange'].=$onchange;
+
+		return $checkInput.self::select($name, $options, $value, $classes, $others);
+	}
+
+	/**
 	 * Return an input HTML tag
 	 * @param string $name name of the tag
 	 * @param string $type value of type attribute

@@ -36,7 +36,9 @@ class SqlStatement extends \PDOStatement {
 			throw new SaltException(L::error_query_fetch($this->queryString), $ex->getCode(), $ex);
 		}
 
-		if ($result !== FALSE) {
+		if ($result === FALSE) {
+			$result = NULL;
+		} else {
 			$result->afterLoad();
 		}
 
