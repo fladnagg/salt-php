@@ -48,6 +48,8 @@ class FormHelper {
 	private static $withJQuery = FALSE;
 	/** @var string[] List of javascript code to add before closing form */
 	private static $javascriptCodes = array();
+	/** @var boolean TRUE for use improved checkbox with FORM method for boolean fields */
+	private static $useImprovedCheckbox = FALSE;
 
 	/**
 	 * Enable or disable usage of JQueryUI
@@ -63,6 +65,16 @@ class FormHelper {
 	 */
 	public static function withJQuery($value = TRUE) {
 		self::$withJQuery = $value;
+	}
+
+	/**
+	 * Enable use of improved checkbox in FORM method for boolean fields
+	 *
+	 * Improved checkbox use jQuery for handle a checkbox mapped to a hidden select field with 0 et 1 values
+	 * @param string $value TRUE (defaut) for enable improved checkbox
+	 */
+	public static function useImprovedCheckbox($value = TRUE) {
+		self::$useImprovedCheckbox = $value;
 	}
 
 	/**
@@ -512,7 +524,12 @@ class FormHelper {
 			break;
 			case 'radio' : $result = self::radio($name, $options, $value, $classes, $others);
 			break;
-			case 'checkbox' : $result = self::input($name, 'checkbox', $value, $classes, $others);
+			case 'checkbox' :
+				if (self::$useImprovedCheckbox) {
+					$result = self::checkbox($name, $value, 1, 0, $classes, $others);
+				} else {
+					$result = self::input($name, 'checkbox', $value, $classes, $others);
+				}
 			break;
 			case 'textarea' : $result = self::textarea($name, $value, $classes, $others);
 			break;
@@ -617,11 +634,21 @@ class FormHelper {
 		}
 		$others['style'].='display:none !important';
 
-		$jsonChecked = json_encode($checkedValue);
-		$jsonUnchecked = json_encode($uncheckedValue);
+		$jsonChecked = json_encode(strval($checkedValue));
+		$jsonUnchecked = json_encode(strval($uncheckedValue));
 
-		if ($value === NULL) {
-			$checked = (FormHelper::getValue($name) == $checkedValue);
+		$realName = $name;
+		if (isset($others['name'])) {
+			$realName = $others['name'];
+		}
+		if (($value === NULL) && ($realName !== NULL)) {
+			// first we try previous submit data
+			$inputValue = FormHelper::getValue($realName);
+			if (($inputValue === NULL) && isset($others['value'])) {
+				// then value of the field if we came from FROM method
+				$inputValue = $others['value'];
+			}
+			$checked = ($inputValue == $checkedValue);
 		} else {
 			$checked = ($value == $checkedValue);
 		}
