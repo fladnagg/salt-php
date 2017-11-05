@@ -44,6 +44,8 @@ class FormHelper {
 	private static $method = NULL;
 	/** @var boolean TRUE if we can use JQueryUI decoration on form tags */
 	private static $withJQueryUI = TRUE;
+	/** @var boolean TRUE if we can use JQuery without any check */
+	private static $withJQuery = FALSE;
 	/** @var string[] List of javascript code to add before closing form */
 	private static $javascriptCodes = array();
 
@@ -53,6 +55,14 @@ class FormHelper {
 	 */
 	public static function withJQueryUI($value = TRUE) {
 		self::$withJQueryUI = $value;
+	}
+
+	/**
+	 * Enable or disable usage of JQuery
+	 * @param boolean $value TRUE (default) for enable JQuery, false for disable
+	 */
+	public static function withJQuery($value = TRUE) {
+		self::$withJQuery = $value;
 	}
 
 	/**
@@ -616,12 +626,12 @@ class FormHelper {
 			$checked = ($value == $checkedValue);
 		}
 
-		$checkInput = self::input(NULL, 'checkbox', $checked, $classes, array('onchange' => <<<JS
-javascript: if(typeof jQuery === 'undefined'){alert('jQuery is required');} else {
-	jQuery(this).next('select').val(this.checked?{$jsonChecked}:{$jsonUnchecked}).change()
-}
-JS
-));
+		$checkScript = "jQuery(this).next('select').val(this.checked?{$jsonChecked}:{$jsonUnchecked}).change()";
+		if (!self::$withJQuery) {
+			$checkScript = "if(typeof jQuery === 'undefined'){alert('jQuery is required');} else { {$checkScript} }";
+		}
+		$checkInput = self::input(NULL, 'checkbox', $checked, $classes, array('onchange' => "javascript: ".$checkScript));
+
 		$onchange = '';
 		if (isset($others['onchange'])) {
 			$onchange = trim($others['onchange']);
@@ -630,11 +640,11 @@ JS
 			}
 			$onchange=';'.$onchange;
 		}
-		$others['onchange'] = <<<JS
-javascript: if(typeof jQuery === 'undefined'){alert('jQuery is required');} else {
-	jQuery(this).prev('input').prop('checked', jQuery(this).val()==={$jsonChecked})
-}
-JS;
+		$others['onchange'] = "jQuery(this).prev('input').prop('checked', jQuery(this).val()==={$jsonChecked})";
+		if (!self::$withJQuery) {
+			$checkScript = "if(typeof jQuery === 'undefined'){alert('jQuery is required');} else { ".$others['onchange']." }";
+		}
+		$others['onchange'] = "javascript: ".$others['onchange'];
 		$others['onchange'].=$onchange;
 
 		return $checkInput.self::select($name, $options, $value, $classes, $others);
@@ -688,8 +698,8 @@ JS;
 			// so, total is 8 \
 			// FIXME : Replace with name="..." without escape...
 			$tag.='<script type="text/javascript">
-					$(function() {
-						$("input[name='.preg_replace('#([\[\]])#', '\\\\\\\\$1', $Input->HTML($attrs['name'])).']").datepicker();
+					jQuery(function() {
+						jQuery("input[name='.preg_replace('#([\[\]])#', '\\\\\\\\$1', $Input->HTML($attrs['name'])).']").datepicker();
 					});
 				</script>';
 		}
