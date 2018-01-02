@@ -4,5 +4,7 @@
 /.buildpath
 /doc/*
 /tests/*
+/tests/config/*
+!/tests/config/*.example.php
 /cache/*
 !/cache/README

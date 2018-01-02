@@ -19,7 +19,7 @@ class Field {
 
 	/**
 	 * @var string[] list of Base special field names */
-	private static $BASE_FIELDS=array('VIEW', 'FORM');
+	private static $BASE_FIELDS=array('FORM', 'VIEW', 'COLUMN', 'SQL');
 	/**
 	 * @var string[] list of all reserved field names */
 	private static $RESERVED_FIELDS= NULL;
@@ -28,7 +28,7 @@ class Field {
 	 * @var string column name */
 	public $name;
 	/**
-	 * @var string description, used by ViewHelper for display the name of the field  */
+	 * @var string description, used by DAOConverter for display the name of the field  */
 	public $text;
 	/**
 	 * @var mixed[] List of possible values for the field
@@ -215,7 +215,7 @@ class Field {
 	 * @param string $useName (optional, NULL) in case $name is a reserved word, $useName will be used instead for DAO (obviously $name is still used in query SQL text)
 	 */
 	public static function newDate($name, $text, $sqlFormat, $displayFormat = DEFAULT_DATE_DISPLAY_FORMAT, $nullable = FALSE, $defaultValue = NULL, $useName = NULL) {
-		return new Field($name, $text, FieldType::DATE, $nullable, NULL, array(), $sqlFormat, $displayFormat, $useName);
+		return new Field($name, $text, FieldType::DATE, $nullable, $defaultValue, array(), $sqlFormat, $displayFormat, $useName);
 	}
 
 	/**
@@ -278,7 +278,7 @@ class Field {
 			case FieldType::DATE :
 				try {
 					$date = new DateTime('@'.$value);
-					if ($date->getTimestamp() === $value) {
+					if ($date->getTimestamp() == $value) {
 						break;
 					}
 				} catch(\Exception $ex) {
@@ -287,48 +287,6 @@ class Field {
 				throw new SaltException(L::error_model_field_not_timestamp($value));
 			break;
 		}
-	}
-
-	/**
-	 * Convert a value from external source (input form) for store in object.
-	 *
-	 * A value for a boolean field is converted to boolean. A value for a date field is converted to timestamp.
-	 * @param mixed $value
-	 * @param string $format date format
-	 * @return mixed
-	 */
-	public function transcodeType($value, $format = NULL) {
-		if (($this->nullable) && ($value === '')) {
-			return NULL;
-		}
-		if ($value === self::EMPTY_STRING) {
-			$value = '';
-		}
-		if ($value === NULL) {
-			return $value;
-		}
-		switch($this->type) {
-			case FieldType::NUMBER : $value = intval($value);
-			break;
-			case FieldType::BOOLEAN : $value = ($value == 1) || ($value === TRUE) || ($value === 'on');
-			break;
-			case FieldType::DATE :
-				if (is_numeric($value)) {
-					$value = intval($value);
-				} else {
-					if ($format === NULL) {
-						$format = $this->displayFormat;
-					}
-					$date = DateTime::createFromFormat('!'.$format, $value);
-					if ($date !== FALSE) {
-						$value = $date->getTimestamp();
-					} else {
-						$value = strtotime($value);
-					}
-				}
-			break;
-		}
-		return $value;
 	}
 
 	/**

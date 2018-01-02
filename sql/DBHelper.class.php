@@ -187,7 +187,7 @@ class DBHelper {
 				}
 
 				try {
-					$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $binding, array($fields, NULL, ($bindingObject !== NULL)));
+					$r->data = $st->fetchAll(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, $binding, array($fields, NULL, ($bindingObject !== NULL), TRUE));
 				} catch (\PDOException $ex) {
 					throw new DBException(L::error_query_fetch($query->toSQL($pagination)), $query->toSQL($pagination), $ex);
 				} catch (\Exception $ex) {
@@ -287,12 +287,11 @@ class DBHelper {
 	/**
 	 * Flatten query. If some binds are array values, linearize them
 	 *
-	 * @param string $q SQL query string
+	 * @param string $sql SQL query string
 	 * @param mixed[] $binds binds, in multiple format, as input/output parameter
 	 * @return string modified SQL query string
 	 */
 	private function flattenSqlQuery($sql, &$binds) {
-		// TODO : handle values in array('value' => , 'type' => ) format
 
 		$sql = preg_replace_callback('#\[([^\]]+)\]#', function($matches) {
 			if (count($matches) > 1) {
@@ -339,7 +338,7 @@ class DBHelper {
 				}
 
 				$newParams = array_merge($newParams, $extraKeys);
-			} else if (is_array($v) || (preg_match('#:'.$k.'([^:_a-zA-Z0-9]|$)#', $sql) === 1)) {
+			} else if (is_array($v) || (preg_match('#:'.first(explode('@', $k, 2)).'([^:_a-zA-Z0-9]|$)#', $sql) === 1)) {
 				$newParams[$k] = $v;
 			}
 		}

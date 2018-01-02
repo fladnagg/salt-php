@@ -1,4 +1,4 @@
-<?php 
+<?php
 /**
  * SqlDateFormat class
  *
@@ -13,7 +13,7 @@ namespace salt;
 class SqlDateFormat {
 
 	/** field is stored in an integer or text field, as a timestamp. */
-	const RAW_TIMESTAMP = '';
+	const RAW_TIMESTAMP = 'timestamp';
 
 	/** field is a TIMESTAMP */
 	const TIMESTAMP = 'TIMESTAMP';
@@ -28,10 +28,22 @@ class SqlDateFormat {
 	 * @var string[] format list for all predefined date formats
 	 */
 	private static $SQL_FORMAT=array(
+		self::RAW_TIMESTAMP => 'DO NOT USE IT',
 		self::TIMESTAMP => '%Y-%m-%d %H:%i:%s',
 		self::DATETIME => '%Y-%m-%d %H:%i:%s',
 		self::DATE => '%Y-%m-%d',
 		self::SHORT_DATE => '%Y%m%d',
+	);
+
+	/**
+	 * @var string[] PHP format list for all predefined date formats
+	 */
+	private static $PHP_FORMAT=array(
+		self::RAW_TIMESTAMP => 'U',
+		self::TIMESTAMP => 'Y-m-d H:i:s',
+		self::DATETIME => 'Y-m-d H:i:s',
+		self::DATE => 'Y-m-d',
+		self::SHORT_DATE => 'Ymd',
 	);
 
 	/**
@@ -56,7 +68,7 @@ class SqlDateFormat {
 	}
 
 	/**
-	 * Convert a format (predefined or not) in real SQL format 
+	 * Convert a format (predefined or not) in real SQL format
 	 * @param string $format Format identifier or SQL format
 	 * @return string real SQL format
 	 */
@@ -67,4 +79,15 @@ class SqlDateFormat {
 		return $format;
 	}
 
+	/**
+	 * Convert a format (predefined or not) in real PHP format
+	 * @param string $format Format identifier or PHP format
+	 * @return string real SQL format
+	 */
+	public static function resolvePHP($format) {
+		if (isset(self::$PHP_FORMAT[$format])) {
+			return self::$PHP_FORMAT[$format];
+		}
+		return $format;
+	}
 }

@@ -9,8 +9,6 @@ namespace salt;
 
 use \Exception;
 
-// In is not translated with I18n for keeping it independant of other class of SALT framework
-
 /**
 * Input and Output variables - Require PHP 5.3.0
 *
@@ -18,9 +16,8 @@ use \Exception;
 * <u>Features</u> :
 * <blockquote>
 *	- Input sources (types) : GET, POST, COOKIE, FILES, SERVER, REQUEST, ENV, SESSION, local variables
-*	- Output format : SQL, HTML, URL, RAW, Base64, ISSET, SET
+*	- Output format : HTML, URL, RAW, Base64, ISSET, SET
 *	- Format a input variable for an output format
-*	//- Array variables (each element are formated)
 *	- Cached variables for performance
 *	- Exception or not if variable don't exist (configuration)
 *	- Charset can be specified
@@ -33,7 +30,7 @@ use \Exception;
 *	$Input = In::getInstance();
 *	echo $Input->G->RAW->id; // display $_GET['id'] without change
 *	echo $Input->P->HTML->foo; // display $_POST['foo'] for a HTML usage (htmlentities)
-*	echo $Input->C->SQL->login; // display $_COOKIE['login'] for a SQL usage (mysql_real_escape_string)
+*	echo $Input->C->B64->login; // display $_COOKIE['login'] in base64 encoding
 *	echo $Input->F->RAW->fileName; // display $FILES['fileName']; without change
 *	echo $Input->G->ISSET->id; // display TRUE if $_GET['id'] exists, FALSE otherwise
 *	echo $Input->G->SET->id = 'foo'; // change value of $_GET['id'] et reset caches in instance
@@ -44,8 +41,7 @@ use \Exception;
 * <blockquote>
 *	- Create a child class which extend In
 *	- Register type / format in register() method like predefined type/format in In
-*	- Call parent::register(); in register()
-*	- Create STATIC methods for new formats in child class
+*	- Implement convert() method for new formats in child class
 * </blockquote>
 *
 * <br/><u>Configuration</u> :
@@ -68,11 +64,17 @@ use \Exception;
 *
 * <br/><u>History</u>
 * <blockquote>
-*	1.8 (03/03/2017) <blockquote>
+* 	2.0 (25/11/2017)<blockquote>
+* 		The class became linked to SALT framework :
+*		Use of SALT Converters, better performance
+*		Use of SALT I18n translation
+*		Remove SQL format
+*	</blockquote>
+* 	1.8 (03/03/2017)<blockquote>
 *		Remove array format feature : Allow this class to process array and scalar values on different ways is error prone.
 *			We can use RAW for retrieve unformated array values, and a loop for formatting each values.
-*	<blockquote>
-*	1.7 (15/08/2016) <blockquote>
+*	</blockquote>
+*	1.7 (15/08/2016)<blockquote>
 *		Translate in english
 *	</blockquote>
 *	1.6 (31/07/2016) <blockquote>
@@ -103,8 +105,14 @@ use \Exception;
 *	</blockquote>
 * </blockquote>
 * </pre>
+*
 * @author	Richaud Julien "Fladnag"
 * @version	1.8
+*
+* @method static string HTML(string $value) HTML value formatted with htmlentities(), ENT_QUOTES, and charset
+* @method static string URL(string $value) value formatted with rawurlencode()
+* @method static string B64(string $value) value formatted with base64_encode()
+* @method static mixed RAW(mixed $value) value without change
 */
 class In {
 
@@ -123,8 +131,6 @@ class In {
 	const _SALT_EX_UNDEFINED_TYPE=3;
 	/** Exception code for trying to set a value without SET format */
 	const _SALT_EX_BAD_SETTER = 4;
-	/** Exception code for trying to access to another instance with a FORMAT parent */
-	const _SALT_EX_BAD_PARENT = 5;
 
 	/** @var int instance type */
 	private $_saltType = self::_SALT_INSTANCE_BASE;
@@ -162,15 +168,12 @@ class In {
 			switch($parent->_saltType) {
 				case self::_SALT_INSTANCE_BASE : $this->_saltType = self::_SALT_INSTANCE_TYPE; break;
 				case self::_SALT_INSTANCE_TYPE : $this->_saltType = self::_SALT_INSTANCE_FORMAT; break;
-				case self::_SALT_INSTANCE_FORMAT :
-					static::throwException('Cannot create an instance from a FORMAT parent', static::_SALT_EX_BAD_PARENT, TRUE);
-				break;
 			}
 			if (!isset(self::$_saltRegistry[$this->_saltType][$name])) {
 				if ($this->_saltType === self::_SALT_INSTANCE_TYPE) {
-					static::throwException("The type [$name] is not registered.", static::_SALT_EX_UNDEFINED_TYPE, TRUE);
+					static::throwException(L::error_in_unknown_type($name), static::_SALT_EX_UNDEFINED_TYPE, TRUE);
 				} else {
-					static::throwException("The format [$name] is not registered.", static::_SALT_EX_UNDEFINED_FORMAT, TRUE);
+					static::throwException(L::error_in_unknown_format($name), static::_SALT_EX_UNDEFINED_FORMAT, TRUE);
 				}
 			}
 		}
@@ -234,11 +237,12 @@ class In {
 		static::registerType('E', '_ENV');
 		static::registerType('SS', '_SESSION');
 
-		static::registerFormat('HTML', array(get_class($this),'HTML'));
-		static::registerFormat('URL', array(get_class($this),'URL'));
-		static::registerFormat('SQL', array(get_class($this),'SQL'));
-		static::registerFormat('RAW', array(get_class($this),'RAW'));
-		static::registerFormat('B64', array(get_class($this),'B64'));
+		static::registerFormat('HTML', 	HTMLConverter::getInstance());
+		static::registerFormat('URL', 	URLConverter::getInstance());
+		static::registerFormat('RAW', 	RAWConverter::getInstance());
+		static::registerFormat('B64', 	B64Converter::getInstance());
+
+
 		static::registerFormat('ISSET', ''); 	// internal implementation, but required for register the format
 		static::registerFormat('SET', ''); 		// internal implementation, but required for register the format
 	}
@@ -255,10 +259,10 @@ class In {
 	/**
 	 * Register a new format
 	 * @param string $name Name of format
-	 * @param string|string[] $function Function name. If it's a class function, use an array(ClassName,StaticMethodName)
+	 * @param Converter $converter Converter class
 	 */
-	protected static function registerFormat($name, $function) {
-		static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$name] = $function;
+	protected static function registerFormat($name, $converter) {
+		static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$name] = $converter;
 	}
 
 	/********** PUBLIC FUNCTIONS **********/
@@ -285,7 +289,7 @@ class In {
 
 			$this->_saltParent->invalidCache($var);
 		} else {
-			static::throwException('Cannot change a value like that. You have to use SET format', self::_SALT_EX_BAD_SETTER, TRUE);
+			static::throwException(L::error_in_bad_setter_format, self::_SALT_EX_BAD_SETTER, TRUE);
 		}
 		$this->_saltCacheSetter = FALSE;
 	}
@@ -310,13 +314,18 @@ class In {
 					$this->setCache($var, $isExists);
 				} else {
 					if (!$isExists) {
-						static::throwException("The property [$var] is not defined for [".$this->_saltParent->_saltName.']', static::_SALT_EX_UNDEFINED_VARIABLE);
+						static::throwException(L::error_in_unknown_property($var, $this->_saltParent->_saltName), static::_SALT_EX_UNDEFINED_VARIABLE);
 						//$this->setCache($var, NULL);
 						// on ne stocke pas en cache une variable inexistante
 						return NULL;
 					} else {
 						$value = ${$array}[$var];
-						$this->setCache($var, forward_static_call(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName], $value));
+						if (isset(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName])) {
+							$cl = static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$this->_saltName];
+							$this->setCache($var, $cl->convert($value));
+						} else {
+							static::throwException(L::error_in_unknown_format($this->_saltName), static::_SALT_EX_UNDEFINED_FORMAT, TRUE);
+						}
 					}
 				}
 			} else {
@@ -329,12 +338,15 @@ class In {
 	/**
 	 * Throw an exception for calling an undefined format
 	 *
-	 * @param string $format the method/format
+	 * @param string $method the method/format
 	 * @param mixed[] $args
 	 * @throws \Exception static::_SALT_EX_UNDEFINED_FORMAT
 	 */
-	public function __call($format, $args) {
-		static::throwException("The format [$format] is undefined.", static::_SALT_EX_UNDEFINED_FORMAT, TRUE);
+	public function __call($method, $args) {
+		if (!isset(static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$method])) {
+			static::throwException(L::error_in_unknown_format($method), static::_SALT_EX_UNDEFINED_FORMAT, TRUE);
+		}
+		return static::$_saltRegistry[self::_SALT_INSTANCE_FORMAT][$method]->convert($args[0]);
 	}
 
 	/**
@@ -384,165 +396,4 @@ class In {
 	public static function haveToThrowException() {
 		return self::$_saltThrowException;
 	}
-
-	/**
-	 * HTML format definition
-	 * @param string $var value to convert
-	 * @return string HTML value formatted with htmlentities(), ENT_QUOTES, and charset
-	 */
-	public static function HTML($var) {
-		return htmlentities($var, \ENT_QUOTES, self::getCharset());
-	}
-
-	/**
-	 * Base64 format definition
-	 * @param string $var value to convert
-	 * @return string value formatted with base64_encode()
-	 */
-	public static function B64($var) {
-		return base64_encode($var);
-	}
-
-	/**
-	 * URL format definition
-	 * @param string $var value to convert
-	 * @return string value formatted with rawurlencode()
-	 */
-	public static function URL($var) {
-		return rawurlencode($var);
-	}
-
-	/**
-	 * SQL format definition
-	 *
-	 * @param string $var value to convert
-	 * @return string value formatted with mysql_real_escape_string (need an active connexion to a MySQL database)
-	 * @deprecated Use prepared queries with PDO for example instead of this format
-	 */
-	public static function SQL($var) {
-		return mysql_real_escape_string($var);
-	}
-
-	/**
-	 * RAW format definition
-	 * @param mixed $var value to convert
-	 * @return mixed value without change
-	 */
-	public static function RAW($var) {
-		return $var;
-	}
 }
-
-/**** Tests Part ****
-header('Content-Type : text/html; charset=utf-8;');
-echo '<pre>';
-
-mysql_connect('localhost', 'root', '');
-
-$a='a\'a"a/a\a<b>a</b>a$a';
-$_GET['id']=$a;
-
-$Tests=array(
-	'$In=salt\In::getInstance();',
-	'salt\In::setCharset("utf-8");',
-	'salt\In::setThrowException(FALSE);',
-	'$_GET[id] pour HTML' => array('$In->G->HTML->id', 'a&#039;a&quot;a/a\a&lt;b&gt;a&lt;/b&gt;a$a'),
-	'$_GET[id] pour SQL' => array('$In->G->SQL->id', 'a\\\'a\\"a/a\\\a<b>a</b>a$a'),
-	'$_GET[id] pour URL' => array('$In->G->URL->id', 'a%27a%22a%2Fa%5Ca%3Cb%3Ea%3C%2Fb%3Ea%24a'),
-	'$_GET[id] pour Base64' => array('$In->G->B64->id', 'YSdhImEvYVxhPGI+YTwvYj5hJGE='),
-	'Local var pour HTML' => array('$In->HTML(\''.str_replace("'", "\\'", $a).'\')', 'a&#039;a&quot;a/a\a&lt;b&gt;a&lt;/b&gt;a$a'),
-	'$_GET[non_exist] pour RAW' => array('$In->G->RAW->non_exist', NULL),
-	'salt\In::setThrowException(TRUE);',
-	'$_GET[non_exist] pour RAW avec Exception' => array('$In->G->RAW->non_exist', In::_SALT_EX_UNDEFINED_VARIABLE),
-	'Isset FALSE'=>array('$In->G->ISSET->nexistepas', FALSE),
-	'Isset TRUE'=>array('$In->G->ISSET->id', TRUE),
-	'Unknown type with Exception' => array('$In->AA->HTML(1)', In::_SALT_EX_UNDEFINED_TYPE),
-	'Unknown format with Exception' => array('$In->TRUC(1)', In::_SALT_EX_UNDEFINED_FORMAT),
-	'class In2 extends salt\In {
-		public function register() {
-			parent::register();
-			static::registerType("RR", "_T");
-			static::registerFormat("HTML2", array(get_class($this), "HTML2"));
-		}
-
-		public static function HTML2($arg) {
-			return "&lt;".$arg."&gt;";
-		}
-	}',
-	'global $_T;',
-	'$_T=array("AA"=>"aa", "BB"=>"bb");',
-	'$In2=In2::getInstance();',
-	'Child class : RR type and HTML2 format'=>array('$In2->RR->HTML2->AA', '&lt;aa&gt;'),
-	'Child class : RR type and HTML format'=>array('$In2->RR->HTML->BB', 'bb'),
-	'Child class : format on local variable'=>array('$In2->HTML2("machin")', '&lt;machin&gt;'),
-	'$_POST["id"]="truc";',
-	'Test Cache 1' => array('$In->P->RAW->id', 'truc'),
-	'$_POST["id"]="machin";',
-	'Test Cache 2' => array('$In->P->RAW->id', 'truc'),
-	'Test Cache 3' => array('$In->P->HTML->id', 'machin'),
-	'$_GET["tab"]=array("<u>", "<a>");',
-	'Child class : array with HTML' => array('$In2->G->HTML->tab', array('&lt;u&gt;', '&lt;a&gt;')),
-	'Child class : array with HTML2' => array('$In2->G->HTML2->tab', array('&lt;<u>&gt;', '&lt;<a>&gt;')),
-);
-
-$mem=array(memory_get_peak_usage(true), memory_get_usage(true));
-
-function runTests($pTests) {
-	$aNumTest=1;
-	$nbOK=0;
-	$nbKO=0;
-	foreach($pTests as $aTestName=>$aTest) {
-		if (is_numeric($aTestName)) {
-			eval($aTest);
-		} else {
-			echo 'Test n°'.($aNumTest++).': '.$aTestName;
-			//echo $In->$value[0][0]->$value[0][1]->$value[0][2];
-			$isExceptionExpected=(is_numeric($aTest[1]));
-			try {
-				//var_dump($aTest[0]);
-				eval('$aResult = '.$aTest[0].';');
-				if (!$isExceptionExpected) {
-					if (assert($aResult === $aTest[1])) {
-						echo ' : OK';
-						$nbOK++;
-					} else {
-						echo ' : KO : '.htmlspecialchars($aTest[1]).'] expected. ['.htmlspecialchars($aResult).'] obtained';
-						$nbKO++;
-					}
-				} else {
-					echo ' : KO : Exception '.htmlspecialchars($aTest[1]).' expected';
-					$nbKO++;
-				}
-			} catch (\Exception $ex) {
-				if ($isExceptionExpected) {
-					if (assert($ex->getCode() === $aTest[1])) {
-						echo ' : OK';
-						$nbOK++;
-					} else {
-						echo ' : KO : '.htmlspecialchars($aTest[1]).'] expected. ['.htmlspecialchars($ex->getCode()).'] obtained';
-						$nbKO++;
-					}
-				} else {
-					echo ' : KO : '.$ex->getMessage().'<br/>['.htmlspecialchars($aTest[1]).'] expected. ['.htmlspecialchars($aResult).'] obtained';
-					$nbKO++;
-				}
-			}
-			echo '<br/>';
-		}
-	}
-	echo '<b># OK : '.$nbOK.'<br/>';
-	echo '# KO : '.$nbKO.'</b><br/>';
-	echo 'Dump for memory :<br/>';
-	ob_start();
-		var_dump($In);
-		var_dump($In2);
-	$out=ob_get_contents();
-	ob_end_clean();
-	echo htmlentities($out);
-}
-
-runTests($Tests);
-
-echo 'Memory max peek usage : '.(memory_get_peak_usage(true)-$mem[0]).' octets<br/>';
-echo 'Memory usage : '.(memory_get_usage(true)-$mem[1]).' octets<br/>';
-******/

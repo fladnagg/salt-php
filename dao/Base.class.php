@@ -67,13 +67,17 @@ abstract class Base extends Identifiable {
 	private $_saltLoadValues = array();
 
 	/**
+	 * @var boolean TRUE if object loaded from constructed Query API, which format date as timestamp
+	 */
+	private $_saltFromQueryAPI = FALSE;
+
+	/**
 	 * Register metadata of object
 	 *
 	 * Sub classes have to implement this method for declaring all metadata by calling ::MODEL()->register...
 	 * @see Model::registerTableName()
 	 * @see Model::registerId()
 	 * @see Model::registerFields()
-	 * @see Base::registerHelper()
 	 * @see Field
 	 */
 	abstract protected function metadata();
@@ -93,9 +97,11 @@ abstract class Base extends Identifiable {
 	 * @param string[] $loadedFields fields loaded by a query for this object. NULL if object created manually (default)
 	 * @param string[] $extraFields fields to add to instance of new objects. Useless for classic usage.
 	 * @param boolean $loadAsNew (Optional, FALSE) if TRUE, the afterLoad() method set the state to NEW instead of LOADED
+	 * @param boolean $fromQueryAPI (Optional, FALSE) TRUE means all date are converted to timestamp in SQL, FALSE means all date are NOT converted
 	 */
-	public function __construct(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE) {
+	public function __construct(array $loadedFields = NULL, array $extraFields = NULL, $loadAsNew = FALSE, $fromQueryAPI = FALSE) {
 		parent::__construct();
+		$this->_saltFromQueryAPI = $fromQueryAPI;
 		$extras = $this->initValues($loadedFields, $extraFields, $loadAsNew);
 	}
 
@@ -240,13 +246,6 @@ abstract class Base extends Identifiable {
 	}
 
 	/**
-	 * Register a child class of ViewHelper for the class
-	 * @param string $class class name of ViewHelper that will by used in $this->VIEW/FORM/COLUMN */
-	public static function registerHelper($class) {
-		BaseViewHelper::setInstance(get_called_class(), $class);
-	}
-
-	/**
 	 * Initialize the class by calling metadata() (once by class) and setting default values (once by instance) if needed
 	 * @param string[] $loadedFields fields loaded by a query for this object
 	 * @param string[] $extraFields fields to add to new instance only
@@ -359,11 +358,8 @@ abstract class Base extends Identifiable {
 	 * @return mixed the value of the field
 	 */
 	public function __get($fieldName) {
-		if ($fieldName === 'FORM') {
-			return $this->FORM();
-		}
-		if ($fieldName === 'VIEW') {
-			return $this->VIEW();
+		if (in_array($fieldName, array('FORM', 'VIEW', 'COLUMN', 'SQL'))) {
+			return $this->$fieldName();
 		}
 		$this->checkFieldExists($fieldName, TRUE);
 		// values can be null : array_key_exists instead of isset
@@ -432,19 +428,32 @@ abstract class Base extends Identifiable {
 	 * @param mixed $value the value
 	 */
 	public function __set($fieldName, $value) {
-
 		$this->checkNotState(self::_SALT_STATE_READONLY, L::error_model_change_readonly);
 		$this->checkNotState(self::_SALT_STATE_DELETED, L::error_model_change_deleted);
 
-		$this->checkFieldExists($fieldName, TRUE, ($this->_saltState === self::_SALT_STATE_DYNAMIC_LOADING));
-
-		$field = $this->getField($fieldName, ($this->_saltState === self::_SALT_STATE_DYNAMIC_LOADING));
-
-		if (in_array($this->_saltState, array(self::_SALT_STATE_LOADING, self::_SALT_STATE_DYNAMIC_LOADING)) && ($value === '')) {
-			$value = Field::EMPTY_STRING;
+		if ($this->_saltState === self::_SALT_STATE_DYNAMIC_LOADING) {
+			if (!self::MODEL()->exists($fieldName)) {
+				$this->addExtraField($fieldName);
+			}
 		}
 
-		$value = $field->transcodeType($value);
+		$this->checkFieldExists($fieldName, TRUE, ($this->_saltState === self::_SALT_STATE_DYNAMIC_LOADING));
+
+		$field = $this->getField($fieldName);
+
+		$conv = DAOConverter::getInstance($this, NULL);
+		if (in_array($this->_saltState, array(self::_SALT_STATE_LOADING, self::_SALT_STATE_DYNAMIC_LOADING, self::_SALT_STATE_NEW_LOADING))) {
+			$format = NULL;
+			if ($this->_saltState === self::_SALT_STATE_NEW_LOADING) {
+				$format = $field->format;
+			} elseif ($this->_saltFromQueryAPI) {
+				$format = SqlDateFormat::RAW_TIMESTAMP;
+			}
+			$value = $conv->setterDB($field, $value, $format);
+		} else {
+			$value = $conv->setter($field, $value);
+		}
+
 		$field->validate($value);
 
 		// value can be null : array_key_exists instead of isset
@@ -527,131 +536,42 @@ abstract class Base extends Identifiable {
 	}
 
 	/**
-	 * Return a text for a field
-	 * @param string $fieldName the fieldName to display
+	 * Return an accessor for retrieve the text of a field
 	 * @param mixed $format (Optional, NULL) the format to use
-	 * @return string ViewHelper HTML protected text to display for $fieldName in $format
+	 * @return \salt\DAOConverter Converter for display the column of field
 	 */
-	public static function COLUMN($fieldName, $format=NULL) {
-		$field = self::singleton()->getField($fieldName, TRUE);
-		return BaseViewHelper::getInstance(get_called_class())->column($field, $format);
+	public static function COLUMN($format=NULL) {
+		return DAOConverter::getInstance(get_called_class(), array(DAOConverter::METHOD_COLUMN => $format));
 	}
 
 	/**
-	 * Return a text for a field value
+	 * Return an accessor for retrieve a field value
 	 * @param mixed $format (Optional, NULL) format to use
-	 * @return _InternalFieldAccess an object for access registered ViewHelper
+	 * @return \salt\DAOConverter Converter for display the value of field
 	 */
 	public function VIEW($format = NULL) {
-		$viewType = ViewControl::isText()?ViewControl::TEXT:ViewControl::SHOW;
-
-		return _InternalFieldAccess::getInstance($this, BaseViewHelper::getInstance(get_called_class()),
-					$viewType, $format);
+		$method = ViewControl::isText()?DAOConverter::METHOD_TEXT:DAOConverter::METHOD_SHOW;
+		return DAOConverter::getInstance($this, array($method => $format));
 	}
 
 	/**
-	 * Return an HTML tag for modify a field value
+	 * Return an accessor for retrieve an input of a field
 	 * @param mixed $format (Optional, NULL) format to use
-	 * @return _InternalFieldAccess an object for access registered ViewHelper
+	 * @return \salt\DAOConverter Converter for display the input of a field
 	 */
 	public function FORM($format = NULL) {
 		if (!ViewControl::isEdit()) {
 			return $this->VIEW($format);
 		}
-
-		return _InternalFieldAccess::getInstance($this, BaseViewHelper::getInstance(get_called_class()),
-					ViewControl::EDIT, $format);
-	}
-}
-
-/**
- * Proxy for field access with ViewHelper
- * @internal
- */
-class _InternalFieldAccess {
-
-	/**
-	 * @var static original object */
-	private $_saltObject;
-	/**
-	 * @var ViewHelper the helper to delegate to. */
-	private $_saltHelper;
-	/**
-	 * @var string ViewControl type (EDIT, SHOW, TEXT) */
-	private $_saltViewType;
-
-	/**
-	 * @var mixed VIEW/FORM parameters */
-	private static $_saltFormat = NULL;
-
-	/**
-	 * @var _InternalFieldAccess[] cache of _InternalFieldAccess instances. */
-	private static $instances=array();
-
-	/**
-	 * Create a new _InternalFieldAccess
-	 * @param static $object the object to use for retrieve field value
-	 * @param ViewHelper $helper the helper to delegate
-	 * @param string $viewType one of ViewControl::EDIT|SHOW|TEXT
-	 */
-	private function __construct(Base $object, ViewHelper $helper, $viewType) {
-		$this->_saltObject = $object;
-		$this->_saltHelper = $helper;
-		$this->_saltViewType = $viewType;
+		return DAOConverter::getInstance($this, array(DAOConverter::METHOD_EDIT => $format));
 	}
 
 	/**
-	 * Retrieve an instance of _InternalFieldAccess
-	 * @param static $object the object to use for retrieve field value
-	 * @param BaseViewHelper $helper the helper to delegate
-	 * @param string $viewType one of ViewControl::EDIT|SHOW|TEXT
-	 * @param mixed $format parameter of VIEW of FORM method
-	 *
-	 * @return _InternalFieldAccess unique instance for the parameters
+	 * Return an accessor for retrieve the SQL text of a field
+	 * @param mixed $format (Optional, NULL) format to use
+	 * @return \salt\DAOConverter Converter for retrieve SQL field value
 	 */
-	public static function getInstance(Base $object, BaseViewHelper $helper, $viewType, $format = NULL) {
-		$key = $object->getInternalId().'/'.$helper->getInternalId().'/'.$viewType;
-
-		if (!isset(self::$instances[$key])) {
-			self::$instances[$key]=new _InternalFieldAccess($object, $helper, $viewType);
-		}
-
-		self::$_saltFormat = $format;
-
-		return self::$instances[$key];
-	}
-
-	/**
-	 * Return a string from a ViewHelper
-	 * @param string $fieldName the field to format
-	 * @return string value of $fieldName, can be a non-HTML protected value (if ViewControl::text(),
-	 * 		a HTML protected value (if ViewControl::show()) or a HTML form tag (if ViewControl::edit())
-	 */
-	public function __get($fieldName) {
-		$field = $this->_saltObject->getField($fieldName);
-		$value = $this->_saltObject->{$field->name};
-
-		$format = NULL;
-		$params = NULL;
-		if (!is_array(self::$_saltFormat)) {
-			$format = self::$_saltFormat;
-		} else {
-			$params = self::$_saltFormat;
-			if (isset($params[ViewHelper::FORMAT_KEY])) {
-				$format = $params[ViewHelper::FORMAT_KEY];
-			}
-		}
-
-		switch($this->_saltViewType) {
-			case ViewControl::EDIT : $result = $this->_saltHelper->edit($this->_saltObject, $field, $value, $format, $params); break;
-			case ViewControl::TEXT : $result = $this->_saltHelper->text($this->_saltObject, $field, $value, $format, $params); break;
-			case ViewControl::SHOW : // default
-			default :				 $result = $this->_saltHelper->show($this->_saltObject, $field, $value, $format, $params);
-
-		}
-
-		self::$_saltFormat = NULL;
-
-		return $result;
+	public function SQL($format = NULL) {
+		return DAOConverter::getInstance($this, array(DAOConverter::METHOD_SQL => $format));
 	}
 }

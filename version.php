@@ -8,4 +8,4 @@
 namespace salt;
 
 /** Last SALT release version */
-define('salt\VERSION', '1.1.1');
+define('salt\VERSION', '2.0.0');

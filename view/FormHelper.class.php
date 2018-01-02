@@ -25,11 +25,14 @@ class FormHelper {
 	 */
 	const TAG_CLOSE = 2;
 
-	/** Key for store value before formatting */
-	const PARAM_RAW_VALUE = '_saltRawValue';
+	/**
+	 * Raw format */
+	const RAW='raw';
+	/**
+	 * Key for format
+	 */
+	const FORMAT_KEY='format';
 
-	/** Key for knowing value source */
-	const PARAM_FROM_INPUT = '_saltFromInput';
 
 	/** Key for adding datepicker JS */
 	const PARAM_DATEPICKER = '_saltDatePicker';
@@ -44,12 +47,12 @@ class FormHelper {
 	private static $method = NULL;
 	/** @var boolean TRUE if we can use JQueryUI decoration on form tags */
 	private static $withJQueryUI = TRUE;
-	/** @var boolean TRUE if we can use JQuery without any check */
-	private static $withJQuery = FALSE;
 	/** @var string[] List of javascript code to add before closing form */
 	private static $javascriptCodes = array();
+	/** @var string[] List of javascript token values to use for replace {jsKey} in javascript code, as array(value, token separator) */
+	private static $javascriptTokens = array();
 	/** @var boolean TRUE for use improved checkbox with FORM method for boolean fields */
-	private static $useImprovedCheckbox = FALSE;
+	private static $useImprovedCheckbox = TRUE;
 
 	/**
 	 * Enable or disable usage of JQueryUI
@@ -60,18 +63,10 @@ class FormHelper {
 	}
 
 	/**
-	 * Enable or disable usage of JQuery
-	 * @param boolean $value TRUE (default) for enable JQuery, false for disable
-	 */
-	public static function withJQuery($value = TRUE) {
-		self::$withJQuery = $value;
-	}
-
-	/**
 	 * Enable use of improved checkbox in FORM method for boolean fields
 	 *
 	 * Improved checkbox use jQuery for handle a checkbox mapped to a hidden select field with 0 et 1 values
-	 * @param string $value TRUE (defaut) for enable improved checkbox
+	 * @param string $value FALSE for disable improved checkbox
 	 */
 	public static function useImprovedCheckbox($value = TRUE) {
 		self::$useImprovedCheckbox = $value;
@@ -94,6 +89,7 @@ class FormHelper {
 		$Input = In::getInstance();
 		self::$method = 'G';
 		self::$javascriptCodes = array();
+		self::$javascriptTokens = array();
 
 		if ($params === NULL) {
 			$params = array();
@@ -153,6 +149,7 @@ class FormHelper {
 		$Input = In::getInstance();
 		self::$method = 'P';
 		self::$javascriptCodes = array();
+		self::$javascriptTokens = array();
 
 		if ($params === NULL) {
 			$params = array();
@@ -249,7 +246,7 @@ class FormHelper {
 			if (is_numeric($k)) {
 				if ($v === '*') {
 					foreach($paramsRequest as $kk => $vv) {
-						if ($vv !== '') {
+						if (($kk !== '') && ($vv !== '')) {
 							$newParams[$kk] = $vv;
 						}
 					}
@@ -258,7 +255,7 @@ class FormHelper {
 				}
 			} else if ($v === NULL) {
 				unset($newParams[$k]);
-			} else {
+			} else if ($k !== '') {
 				$newParams[$k] = $v;
 			}
 		}
@@ -273,13 +270,34 @@ class FormHelper {
 		self::$method = NULL;
 
 		$result='';
+		$codes = array();
+		$tokens = self::$javascriptTokens;
+		$keys = implode('|', array_keys($tokens));
+		foreach(self::$javascriptCodes as $k => $js) {
+			$oldJs = NULL;
+			$watchDogs = 10;
+			if (count($tokens) > 0) {
+				while($oldJs !== $js) {
+					if ($watchDogs-- <= 0) {
+						throw new SaltException(L::error_view_javascript_recursion);
+					}
+					$oldJs = $js;
+					$js = preg_replace_callback('#\{('.$keys.')\}#', function($matches) use ($tokens) {
+						$key = $matches[1];
+						return implode($tokens[$key]['separator'], $tokens[$key]['values']);
+					}, $js);
+				}
+			}
+			$codes[] = $js;
+		}
 		if (count(self::$javascriptCodes) > 0) {
 			$result.='<script type="text/javascript">';
-			$result.=implode("\n\n", self::$javascriptCodes);
+			$result.=implode("\n\n", $codes);
 			$result.='</script>';
 		}
 
 		self::$javascriptCodes = array();
+		self::$javascriptTokens = array();
 
 		$result.=self::HTMLtag('form', array(), NULL, self::TAG_CLOSE);
 		return $result;
@@ -432,10 +450,10 @@ class FormHelper {
 	 * @param mixed $value Have to be in DAO format (timestamp for date, TRUE/FALSE for boolean, etc...)
 	 * @param string[] $classes CSS classes. Each element can contains multiple classes separated by space
 	 * @param mixed[] $others others HTML attributes : key=>value
-	 * @param ViewHelper $helper The helper to use for format the value
+	 * @param Converter $helper The helper to use for format the value
 	 * @return string HTML tag for the field
 	 */
-	public static function field(Field $field, $name, $value, $classes = array(), $others = array(), ViewHelper $helper = NULL) {
+	public static function field(Field $field, $name, $value, $classes = array(), $others = array(), DAOConverter $helper = NULL) {
 		$Input = In::getInstance();
 
 		if ($others === NULL) {
@@ -450,12 +468,12 @@ class FormHelper {
 		if (!array_key_exists('name', $others)) { // value can be NULL, array_key_exists required
 			$others['name'] = $field->name;
 		}
-		if (!array_key_exists(ViewHelper::FORMAT_KEY, $others)) { // value can be NULL, array_key_exists required
-			$others[ViewHelper::FORMAT_KEY] = $field->displayFormat;
+		if (!array_key_exists(self::FORMAT_KEY, $others)) { // value can be NULL, array_key_exists required
+			$others[self::FORMAT_KEY] = $field->displayFormat;
 		}
 
 		// type guess
-		$type = NULL;
+		$type = 'text';
 		if (isset($others['type'])) {
 			$type = $others['type'];
 			unset($others['type']);
@@ -472,23 +490,25 @@ class FormHelper {
 				$type = 'select';
 			}
 		}
-		if ($type === NULL) {
-			$type = 'text';
-		}
 
-		// transcode DAO value
-		$value = $field->transcodeType($value);
+		if (($type === 'text') && ($field->type === FieldType::DATE)) {
+			if (self::$withJQueryUI) {
+				$others[self::PARAM_DATEPICKER] = TRUE;
+// 			} else { // not enought browser support it... https://caniuse.com/#search=date
+// 				$type = 'date';
+			}
+		}
 
 		if ($helper !== NULL) {
-			$others[self::PARAM_RAW_VALUE] = $value;
-			if ($value !== NULL) {
-				$others['value'] = $helper->text($helper->getObject(), $field, $value, $others[ViewHelper::FORMAT_KEY], array());
+			// default value if no input value
+			if (in_array($type, array('select', 'checkbox', 'radio'))) {
+				// value have to be NOT formatted for these types
+				$others['value'] = $value;
+			} else {
+				// but formatter otherwise (text, date, textarea)
+				$others['value'] = $helper->text($helper->getObject(), $field, $value, $others[self::FORMAT_KEY], array());
 			}
 			$value = NULL; // value in parameters have more priority than GET/POST
-		}
-
-		if (($type === 'text') && ($field->type === FieldType::DATE) && (self::$withJQueryUI)) {
-			$others[self::PARAM_DATEPICKER] = TRUE;
 		}
 
 		$options = array();
@@ -510,15 +530,15 @@ class FormHelper {
 
 		// remove internal keys which are not HTML attributes
 		unset($others['options']);
-		unset($others[ViewHelper::FORMAT_KEY]);
+		unset($others[self::FORMAT_KEY]);
 
 		$result=NULL;
 		switch($type) {
-			case 'hidden' :	$result = self::input($name, 'hidden', $value, $classes, $others);
-			break;
-			case 'text' :	$result = self::input($name, 'text', $value, $classes, $others);
-			break;
-			case 'password' :	$result = self::input($name, 'password', $value, $classes, $others);
+			case 'hidden' :
+			case 'text' :
+			case 'date' :
+			case 'password' :
+				$result = self::input($name, $type, $value, $classes, $others);
 			break;
 			case 'select' : $result = self::select($name, $options, $value, $classes, $others);
 			break;
@@ -526,7 +546,7 @@ class FormHelper {
 			break;
 			case 'checkbox' :
 				if (self::$useImprovedCheckbox) {
-					$result = self::checkbox($name, $value, 1, 0, $classes, $others);
+					$result = self::checkbox($name, $value, $classes, $others);
 				} else {
 					$result = self::input($name, 'checkbox', $value, $classes, $others);
 				}
@@ -560,31 +580,28 @@ class FormHelper {
 			$attrs = array();
 		}
 
-		$params = array();
-		if (isset($name)) $params['name'] = $name;
-		if (isset($value)) $params['value'] = $value;
-		if (count($classes) > 0) $params['class'] = implode(' ', $classes);
+		if (count($classes) > 0) {
+			$attrs['class'] = implode(' ', $classes);
+		}
 
-		$attrs = array_merge($attrs, $params);
-		// MERGE END
-
-		$inputValue = NULL;
-		if (isset($attrs['name'])) {
+		if (!isset($name) && isset($attrs['name'])) {
 			$name = $attrs['name'];
 		}
 		$attrs['name'] = self::getName($name);
 
-		$attrs[self::PARAM_FROM_INPUT] = FALSE;
-
-		if (($name !== NULL) && ($value === NULL)) {
+		if (!isset($attrs['value'])) {
+			$attrs['value'] = NULL;
+		}
+		// PROVIDED ($value, have to be formatted) > INPUT (from previous form submit, not formatted) > DEFAULT (value in $attrs, have to be formatted)
+		if (isset($value)) {
+			$attrs['value'] = $value;
+		} else if (($name !== NULL) && ($value === NULL)) {
 			$inputValue = self::getValue($name);
 			if ($inputValue !== NULL) {
-				// no transcode because value from last submit, so in same format
+				// not formatted because value came from last submit, so already formatted
 				$attrs['value'] = $inputValue;
-				$attrs[self::PARAM_FROM_INPUT] = TRUE;
 			}
 		}
-
 		return $attrs;
 	}
 
@@ -610,71 +627,77 @@ class FormHelper {
 	}
 
 	/**
-	 * Return a checkbox HTML tag with a select tag implementation
+	 * Return a checkbox HTML tag with a 1/0 implementation.
+	 * Unchecked box will return 0 and not an unset name like standard checkbox
 	 *
-	 * This tag need jQuery and is compatible with jQuery .val(..).change() set method<br/>
-	 * Don't forget to call change() after val(...)
+	 * This tag work with and without javascript<br/>
+	 * With javascript, if you set the checkbox value (to one of 1/0), you need jQuery AND call change() after val(...)
 	 *
 	 * @param string $name name of the tag
 	 * @param string $value value of the tag
-	 * @param string|int $checkedValue value for checked state
-	 * @param string|int $uncheckedValue value for unchecked state
-	 * @param string[] $classes CSS classes of the tag (added to checkbox and select)
-	 * @param mixed[] $others all other attributes for the tag (added to select only)
+	 * @param string[] $classes CSS classes of the tag
+	 * @param mixed[] $others all other attributes for the tag
 	 * @return string HTML text tag
 	 */
-	public static function checkbox($name, $value = NULL, $checkedValue = 1, $uncheckedValue = 0, $classes = array(), array $others = array()) {
-		$options = array($uncheckedValue, $checkedValue);
-		$options = array_combine($options, $options);
+	public static function checkbox($name, $value = NULL, $classes = array(), array $others = array()) {
+		static $id = 0;
 
-		if (!isset($others['style'])) {
-			$others['style']='';
-		} else {
-			$others['style'].=';';
-		}
-		$others['style'].='display:none !important';
+		$id++;
+		$checkId = 's:cy'.$id;
+		$uncheckId = 's:cn'.$id;
 
-		$jsonChecked = json_encode(strval($checkedValue));
-		$jsonUnchecked = json_encode(strval($uncheckedValue));
-
-		$realName = $name;
-		if (isset($others['name'])) {
-			$realName = $others['name'];
-		}
-		if (($value === NULL) && ($realName !== NULL)) {
-			// first we try previous submit data
-			$inputValue = FormHelper::getValue($realName);
-			if (($inputValue === NULL) && isset($others['value'])) {
-				// then value of the field if we came from FROM method
-				$inputValue = $others['value'];
-			}
-			$checked = ($inputValue == $checkedValue);
-		} else {
-			$checked = ($value == $checkedValue);
+		if (isset($others['id'])) {
+			$checkId = $others['id'];
 		}
 
-		$checkScript = "jQuery(this).next('select').val(this.checked?{$jsonChecked}:{$jsonUnchecked}).change()";
-		if (!self::$withJQuery) {
-			$checkScript = "if(typeof jQuery === 'undefined'){alert('jQuery is required');} else { {$checkScript} }";
+		$checkedValue = 1;
+		$uncheckedValue = 0;
+
+		$uncheckedInput = self::input($name, 'hidden', 0, array(), array(
+			'name' => isset($others['name'])?$others['name']:$name,
+			'id' => $uncheckId,
+			'onchange' => "javascript:var c=document.getElementById(".json_encode($checkId).");".
+							"c.checked=(value==".$checkedValue.");".
+							"c.value=".$checkedValue.";".
+							"document.getElementById(".json_encode($uncheckId).").value=".$uncheckedValue.";",
+		));
+
+		$attrs = self::commonTagAttributes($name, $value, $classes, $others);
+
+		$value = $attrs['value'];
+		$checked = ($value == 1);
+
+		// Without javascript, there is a little "issue" :
+		// 	the name of a checked checkbox send with a GET form will appear twice in URL, with unchecked and checked value.
+		//	it work because PHP keep only last value when same name are send
+		if ($checked) {
+			$key = FormHelper::registerJSPageLoaded();
+			FormHelper::registerJSTokenValue($key, 'document.getElementById('.json_encode($uncheckId).').setAttribute("disabled", "disabled")');
 		}
-		$checkInput = self::input(NULL, 'checkbox', $checked, $classes, array('onchange' => "javascript: ".$checkScript));
 
 		$onchange = '';
-		if (isset($others['onchange'])) {
-			$onchange = trim($others['onchange']);
+		if (isset($attrs['onchange'])) {
+			$onchange = trim($attrs['onchange']);
 			if (preg_match('#^javascript\s*:#', $onchange) === 1) {
 				$onchange = last(explode(':', $onchange, 2));
 			}
 			$onchange=';'.$onchange;
 		}
-		$others['onchange'] = "jQuery(this).prev('input').prop('checked', jQuery(this).val()==={$jsonChecked})";
-		if (!self::$withJQuery) {
-			$checkScript = "if(typeof jQuery === 'undefined'){alert('jQuery is required');} else { ".$others['onchange']." }";
-		}
-		$others['onchange'] = "javascript: ".$others['onchange'];
-		$others['onchange'].=$onchange;
 
-		return $checkInput.self::select($name, $options, $value, $classes, $others);
+		$attrs = array_merge($attrs, array(
+			'type' => 'checkbox',
+			'value' => 1,
+			'id' => $checkId,
+			'onchange' => "javascript:var c=document.getElementById(".json_encode($uncheckId)."),d='disabled';".
+						"this.checked?c.setAttribute(d,d):c.removeAttribute(d);".
+						$onchange,
+		));
+		if ($checked) {
+			$attrs['checked'] = 'checked';
+		}
+		$checkedInput = self::HTMLtag('input', $attrs);
+
+		return $uncheckedInput.$checkedInput;
 	}
 
 	/**
@@ -695,15 +718,10 @@ class FormHelper {
 			$attrs['type'] = $type;
 		}
 
-		if (($value === NULL) && isset($attrs[self::PARAM_RAW_VALUE])) {
-			$value = $attrs[self::PARAM_RAW_VALUE];
-		}
-		if (($value === NULL) && isset($attrs['value'])) {
-			$value = $attrs['value'];
-		}
+		$value = $attrs['value'];
 
 		if (($value !== NULL) && ($attrs['type'] === 'checkbox')) {
-			if (($value === TRUE) || ($value === 'on')) { // FIXME format value before ?
+			if ($value !== FALSE) { // FIXME format value before ?
 				$attrs['checked'] = 'checked';
 			}
 			unset($attrs['value']);
@@ -712,23 +730,27 @@ class FormHelper {
 		// allow value attrs in checkbox to having other value than 'on' when checked.
 		// FIXME don't work well. Have to compare $value to $others['value'] for checked ?
 		// $others['values'] is set to helper->text() in ::field()
-		if (($attrs['type'] === 'checkbox') && isset($others['value'])) {
-			$attrs['value'] = $others['value'];
+		if ($attrs['type'] === 'checkbox') {
+			if (isset($others['value'])) {
+				$attrs['value'] = $others['value'];
+			}
 		}
 
 		$tag = self::HTMLtag('input', $attrs);
 
 		if (isset($others[self::PARAM_DATEPICKER])) {
-			// if we have a nameContainer, we have to escape '[' and ']' in name for find the input a[b][c]
-			// [] in JS have to be double-escaped with \, so, we have to generate : a\\[b\\]\\[c\\]
-			// for each \, we have to write 4 \ in preg_replace (2 for PHP parser, 2 for PCRE parser)
-			// so, total is 8 \
-			// FIXME : Replace with name="..." without escape...
-			$tag.='<script type="text/javascript">
-					jQuery(function() {
-						jQuery("input[name='.preg_replace('#([\[\]])#', '\\\\\\\\$1', $Input->HTML($attrs['name'])).']").datepicker();
-					});
-				</script>';
+			$errorMessage = json_encode(L::error_view_missing_jqueryui);
+			$initKey = 'initDateField';
+			$key = self::registerJSPageLoaded();
+			FormHelper::registerJSTokenValue($key, <<<JS
+if (typeof(jQuery)!="undefined") {
+	jQuery('{{$initKey}}').datepicker();
+} else {
+	alert({$errorMessage});
+}
+JS
+, $initKey);
+			FormHelper::registerJSTokenValue($initKey, 'input[name="'.$Input->HTML($attrs['name']).'"]', NULL, ',');
 		}
 
 		return $tag;
@@ -817,20 +839,14 @@ class FormHelper {
 
 		$attrs = self::commonTagAttributes($name, $value, $classes, $others);
 
-		if (array_key_exists('value', $attrs)) {
-			$value = $attrs['value'];
-			unset($attrs['value']);
-		}
+		$value = $attrs['value'];
+		unset($attrs['value']);
 
 		if (is_bool($value)) {
 			$value = ($value)?1:0;
 		}
 
-		$rawValue = $value;
-		if (isset($attrs[self::PARAM_RAW_VALUE]) && !$attrs[self::PARAM_FROM_INPUT]) { // if PARAM_RAW_VALUE is null, don't set, finding an option always failed
-			$rawValue = $attrs[self::PARAM_RAW_VALUE];
-		}
-		$content = self::buildSelectOptions($options, $rawValue);
+		$content = self::buildSelectOptions($options, $value);
 
 		return self::HTMLtag('select', $attrs, $content);
 	}
@@ -839,8 +855,53 @@ class FormHelper {
 	 * Register a javascript bloc to add before closing form
 	 * @param string $key The key to use for append code : every previous code registered with this key is replaced
 	 * @param string $jsCode The javascript code
+	 * @return string the $key
 	 */
 	public static function registerJavascript($key, $jsCode) {
+		if ($key === NULL) {
+			$key = uniqid(md5($jsCode));
+		}
 		self::$javascriptCodes[$key] = $jsCode;
+		return $key;
 	}
+
+	/**
+	 * Add a value for a replaceable token in JS code registered to registerJavascript()
+	 * @param string $key The key of registerJavascript()
+	 * @param string $value Value to use for replace {$key}
+	 * @param string $valueKey key for value, multiple call with same key replace the value
+	 * @param string $tokenSeparator separator for muliple values
+	 * @return string $valueKey
+	 */
+	public static function registerJSTokenValue($key, $value, $valueKey = NULL, $tokenSeparator = "\n") {
+		if (!isset(self::$javascriptTokens[$key])) {
+			self::$javascriptTokens[$key] = array('separator' => $tokenSeparator, 'values' => array());
+		}
+		if ($valueKey === NULL) {
+			$valueKey = uniqid(md5($value));
+		}
+		self::$javascriptTokens[$key]['values'][$valueKey] = $value;
+		return $valueKey;
+	}
+
+	/**
+	 * Register a javascript bloc executed when page was loaded. Require IE9+ or real browser ;o)
+	 * @return string the javascript key
+	 */
+	public static function registerJSPageLoaded() {
+		$key = 'pageLoaded';
+		return FormHelper::registerJavascript($key, <<<JS
+if (typeof(jQuery)!="undefined") {
+	jQuery(function() {
+		{{$key}}
+	});
+} else {
+	document.addEventListener("DOMContentLoaded", function(event) {
+		{{$key}}
+	});
+}
+JS
+);
+	}
+
 }

@@ -56,6 +56,7 @@ error:
       not_number: La valeur [%s] doit être un nombre.
       not_boolean: La valeur [%s] doit être un booléen.
       not_timestamp: La valeur [%s] doit être un timestamp.
+      date_invalid_format: La valeur [%s] doit être une date au format [%s].
       already_exists: Le champ [%s] existe déjà.
       unknown: Le champ [%s] n'existe pas dans la classe [%s].
       not_loaded: Le champ [%s] n'est pas chargé dans la classe [%s].
@@ -75,6 +76,14 @@ error:
 
   view:
     missing_form: Merci d'appeler FormHelper::get() ou FormHelper::post() avant d'utiliser les autres API de FormHelper.
+    missing_jqueryui: jQuery UI est nécessaire pour certains champs. Si jQuery n'est pas disponible, merci d'appeller FormHelper::withJQueryUI(FALSE) avant l'affichage des champs.
+    javascript_recursion: Trop d'appels lors de l'initialisation javascript.
+
+  in:
+    unknown_type: Le type [%s] n'est pas enregistré.
+    unknown_format: Le format [%s] n'est pas enregistré.
+    unknown_property: La propriété [%s] n'existe pas pour [%s].
+    bad_setter_format: Il n'est pas possible de modifier une valeur de cette manière. Vous devez utiliser le format SET.
 
 view:
   yes: Oui

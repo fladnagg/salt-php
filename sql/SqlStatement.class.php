@@ -20,6 +20,22 @@ class SqlStatement extends \PDOStatement {
 	}
 
 	/**
+	 * Retrieve all column names
+	 * @param string[] $excepts do not return theses columns
+	 * @return string[] Column names
+	 */
+	public function getColumns($excepts = array()) {
+		$cols = array();
+		for($i = 0; $i < $this->columnCount(); $i++) {
+			$col = $this->getColumnMeta($i);
+			if (!in_array($col['name'], $excepts)) {
+				$cols[] = $col['name'];
+			}
+		}
+		return $cols;
+	}
+
+	/**
 	 * Retrieve next object from executed statement
 	 * @param Base $bindingObject The type of object to return
 	 * @return Base|FALSE the next row as Base object or FALSE if there is no more rows

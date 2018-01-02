@@ -56,6 +56,7 @@ error:
       not_number: Value [%s] have to be a number.
       not_boolean: Value [%s] have to be a boolean.
       not_timestamp: Value [%s] have to be a timestamp.
+      date_invalid_format: Value [%s] have to be a date with [%s] format.
       already_exists: The field [%s] already exists.
       unknown: The field [%s] does not exists for class [%s].
       not_loaded: The field [%s] is not loaded for class [%s].
@@ -75,7 +76,16 @@ error:
 
   view:
     missing_form: Please call FormHelper::get() or FormHelper::post() before using others FormHelper API.
+    missing_jqueryui: jQuery UI is required for some fields. If jQuery is not available, please call FormHelper::withJQueryUI(FALSE) before display form fields.
+    javascript_recursion: Too many calls in javascript initialization.
 
+  in:
+    unknown_type: The type [%s] is not registered.
+    unknown_format: The format [%s] is not registered.
+    unknown_property: The property [%s] is not defined for [%s].
+    bad_setter_format: Cannot change a value like that. You have to use SET format.
+    
+    
 view:
   # "Yes" and "No" are keyword in yaml, we have to use quote for the value 
   yes: 'Yes'

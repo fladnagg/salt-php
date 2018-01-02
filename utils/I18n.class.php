@@ -615,7 +615,7 @@ HTACCESS;
 	public function getCurrentLocale() {
 		return $this->_saltLocale;
 	}
-	
+
 	/**
 	 * Generate and write a class to disk
 	 *
@@ -737,12 +737,12 @@ PHP;
 	 *
 	 * @param mixed[] $data array as key=>value, value can be an array
 	 * @param string $keyPrefix prefix of all keys, do not use on first call
+	 * @param string[] $allKeys all computed keys, internal calls only
 	 * @return string PHP code with all leaf of $data as constant and all node of $data as static function that return an array
 	 */
-	private static function buildData(array $data, $keyPrefix = '') {
+	private static function buildData(array $data, $keyPrefix = '', &$allKeys = array()) {
 		$result = '';
 		foreach($data as $k => $v) {
-
 			if ((self::DEBUG) && !is_array($v)) {
 				$v = '#'.$v.'#';
 			}
@@ -750,7 +750,7 @@ PHP;
 			$key = $keyPrefix.self::normalizeKey($k);
 			if (is_array($v)) {
 				// add sub values as flatten constants
-				$result.=self::buildData($v, $key.'_');
+				$result.=self::buildData($v, $key.'_', $allKeys);
 
 				// build a smart array where values are other constants/methods
 				$var = array();
@@ -780,6 +780,12 @@ PHP;
 PHP;
 			}
 		}
+
+		if (in_array($key, $allKeys)) {
+			throw new SaltException('The key ['.$key.'] is already used.');
+		}
+		$allKeys[] = $key;
+
 		return $result;
 	}
 }
